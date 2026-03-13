@@ -1,2 +1,4 @@
 node_modules/
-plugin-testing-vault/.obsidian/plugins/obsidian-attachments-plugin/main.js
+plugin-testing-vault/
+main.js
+.DS_Store
