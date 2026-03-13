@@ -24,7 +24,7 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build
+        run: npm run build && cp plugin-testing-vault/.obsidian/plugins/attachment-bases/main.js main.js
 
       - name: Create release
         uses: softprops/action-gh-release@v2
