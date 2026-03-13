@@ -7,7 +7,7 @@ import { execSync } from "child_process";
 const OBSIDIAN_BIN = "/Applications/Obsidian.app/Contents/MacOS/Obsidian";
 
 const prod = process.argv[2] === "production";
-const outDir = "plugin-testing-vault/.obsidian/plugins/obsidian-attachments-plugin";
+const outDir = "plugin-testing-vault/.obsidian/plugins/attachment-bases";
 
 const context = await esbuild.context({
   entryPoints: ["src/main.ts"],
@@ -28,7 +28,7 @@ const context = await esbuild.context({
           cpSync("manifest.json", `${outDir}/manifest.json`);
           if (!prod) {
             try {
-              execSync(`"${OBSIDIAN_BIN}" plugin:reload id=obsidian-attachments-plugin`);
+              execSync(`"${OBSIDIAN_BIN}" plugin:reload id=attachment-bases`);
             } catch {
               // Obsidian not running or CLI not enabled
             }
