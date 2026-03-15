@@ -39,8 +39,13 @@
 ---
 
 ## Phase 4 — Backlog (future)
+- [x] Auto-create an Obsidian Base on plugin install (pre-configured to query companion notes)
+- [x] Configure watched folder — limit the plugin to listen for attachments only in a specific folder
+- [ ] Templater integration — use a Templater template for companion note content instead of the built-in format
 - [ ] Manual "re-sync single file" command from context menu
 - [ ] Companion note template customization (user-defined frontmatter fields)
 - [ ] Bulk delete all companion notes command
+- [ ] Command to move all existing companion notes to the currently configured companion folder
+- [ ] Default watched folders to `attachments/` and companion folder to `mdpairs/` on first install (create folders if they don't exist)
 - [ ] Support for companion folder per attachment type (images → `_meta/images/`)
 - [ ] Show companion status in file explorer (icon or badge)

@@ -1,7 +1,7 @@
 {
   "id": "attachment-bases",
   "name": "Attachments Manager",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "minAppVersion": "1.7.0",
   "description": "Manage attachments as markdown notes, making them queryable in Obsidian Bases.",
   "author": "Miguel Baquero",

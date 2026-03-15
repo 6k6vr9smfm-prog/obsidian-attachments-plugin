@@ -5,12 +5,16 @@ export interface AttachmentsManagerSettings {
   excludePatterns: string[];
   companionFolder: string; // empty string = same folder as attachment
   syncOnStartup: boolean;
+  watchedFolders: string[]; // empty = watch entire vault
+  hasCreatedBase: boolean;
 }
 
 export const DEFAULT_SETTINGS: AttachmentsManagerSettings = {
   excludePatterns: [],
   companionFolder: "",
   syncOnStartup: true,
+  watchedFolders: [],
+  hasCreatedBase: false,
 };
 
 export class AttachmentsManagerSettingsTab extends PluginSettingTab {
@@ -61,6 +65,25 @@ export class AttachmentsManagerSettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.excludePatterns.join(", "))
           .onChange(async (value) => {
             this.plugin.settings.excludePatterns = value
+              .split(",")
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0);
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Watched folders")
+      .setDesc(
+        "Comma-separated list of folders to watch for attachments (e.g. attachments/, photos/). " +
+          "Leave empty to watch the entire vault."
+      )
+      .addTextArea((text) =>
+        text
+          .setPlaceholder("attachments/, photos/")
+          .setValue(this.plugin.settings.watchedFolders.join(", "))
+          .onChange(async (value) => {
+            this.plugin.settings.watchedFolders = value
               .split(",")
               .map((s) => s.trim())
               .filter((s) => s.length > 0);

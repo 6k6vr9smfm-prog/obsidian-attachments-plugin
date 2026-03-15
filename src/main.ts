@@ -6,6 +6,7 @@ import {
   AttachmentsManagerSettingsTab,
   DEFAULT_SETTINGS,
 } from "./settings";
+import { createAttachmentsBase } from "./base-manager";
 
 export default class AttachmentsManagerPlugin extends Plugin {
   settings: AttachmentsManagerSettings;
@@ -17,9 +18,17 @@ export default class AttachmentsManagerPlugin extends Plugin {
 
     this.addSettingTab(new AttachmentsManagerSettingsTab(this.app, this));
 
-    if (this.settings.syncOnStartup) {
-      await this.companionManager.syncAll();
-    }
+    this.app.workspace.onLayoutReady(async () => {
+      if (!this.settings.hasCreatedBase) {
+        await createAttachmentsBase(this.app);
+        this.settings.hasCreatedBase = true;
+        await this.saveSettings();
+      }
+
+      if (this.settings.syncOnStartup) {
+        await this.companionManager.syncAll();
+      }
+    });
 
     this.registerEvent(
       this.app.vault.on("create", (file: TAbstractFile) => {
@@ -49,6 +58,14 @@ export default class AttachmentsManagerPlugin extends Plugin {
       id: "sync-all-attachments",
       name: "Sync all attachment companions",
       callback: () => this.companionManager.syncAll(),
+    });
+
+    this.addCommand({
+      id: "create-attachments-base",
+      name: "Create Attachments Base",
+      callback: async () => {
+        await createAttachmentsBase(this.app);
+      },
     });
   }
 

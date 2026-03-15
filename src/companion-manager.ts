@@ -17,7 +17,7 @@ export class CompanionManager {
   async syncAll(): Promise<void> {
     const files = this.app.vault.getFiles();
     for (const file of files) {
-      if (isAttachment(file) && !this.isExcluded(file.path)) {
+      if (isAttachment(file) && !this.isExcluded(file.path) && this.isInWatchedFolder(file.path)) {
         await this.createCompanion(file);
       }
     }
@@ -25,6 +25,7 @@ export class CompanionManager {
 
   async createCompanion(file: TFile): Promise<void> {
     if (this.isExcluded(file.path)) return;
+    if (!this.isInWatchedFolder(file.path)) return;
     const companionPath = this.getCompanionPath(file);
     if (this.app.vault.getAbstractFileByPath(companionPath)) return;
 
@@ -80,6 +81,13 @@ export class CompanionManager {
   private isExcluded(filePath: string): boolean {
     return this.settings.excludePatterns.some((pattern) =>
       filePath.startsWith(pattern)
+    );
+  }
+
+  private isInWatchedFolder(filePath: string): boolean {
+    if (this.settings.watchedFolders.length === 0) return true;
+    return this.settings.watchedFolders.some((folder) =>
+      filePath.startsWith(folder)
     );
   }
 
