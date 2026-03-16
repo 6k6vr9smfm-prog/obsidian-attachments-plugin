@@ -1,4 +1,4 @@
-import { Plugin, TAbstractFile, TFile } from "obsidian";
+import { App, Modal, Plugin, Setting, TAbstractFile, TFile } from "obsidian";
 import { CompanionManager } from "./companion-manager";
 import { isAttachment } from "./attachment-utils";
 import {
@@ -7,6 +7,34 @@ import {
   DEFAULT_SETTINGS,
 } from "./settings";
 import { createAttachmentsBase } from "./base-manager";
+
+class ConfirmModal extends Modal {
+  constructor(app: App, private message: string, private onConfirm: () => void) {
+    super(app);
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.createEl("p", { text: this.message });
+    new Setting(contentEl)
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => this.close())
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Delete")
+          .setWarning()
+          .onClick(() => {
+            this.close();
+            this.onConfirm();
+          })
+      );
+  }
+
+  onClose() {
+    this.contentEl.empty();
+  }
+}
 
 export default class AttachmentsManagerPlugin extends Plugin {
   settings: AttachmentsManagerSettings;
@@ -65,6 +93,24 @@ export default class AttachmentsManagerPlugin extends Plugin {
       name: "Create Attachments Base",
       callback: async () => {
         await createAttachmentsBase(this.app);
+      },
+    });
+
+    this.addCommand({
+      id: "move-companions-to-folder",
+      name: "Move all companion notes to configured folder",
+      callback: () => this.companionManager.moveAllCompanionsToFolder(),
+    });
+
+    this.addCommand({
+      id: "delete-all-companions",
+      name: "Delete all companion notes",
+      callback: () => {
+        new ConfirmModal(
+          this.app,
+          "This will permanently delete all companion notes in your vault. This cannot be undone. Are you sure?",
+          () => this.companionManager.deleteAllCompanions()
+        ).open();
       },
     });
   }

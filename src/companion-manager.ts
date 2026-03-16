@@ -1,5 +1,5 @@
-import { App, TFile, normalizePath } from "obsidian";
-import { getAttachmentType, isAttachment } from "./attachment-utils";
+import { App, Notice, TFile, normalizePath } from "obsidian";
+import { getAttachmentType, isAttachment, isCompanionNote } from "./attachment-utils";
 import type { AttachmentsManagerSettings } from "./settings";
 
 interface AttachmentMetadata {
@@ -31,8 +31,12 @@ export class CompanionManager {
 
     // Ensure companion folder exists if configured
     const folder = this.settings.companionFolder;
-    if (folder && !this.app.vault.getAbstractFileByPath(folder)) {
-      await this.app.vault.createFolder(folder);
+    if (folder) {
+      try {
+        await this.app.vault.createFolder(folder);
+      } catch {
+        // folder already exists, continue
+      }
     }
 
     const content = await this.buildContent(file);
@@ -63,6 +67,58 @@ export class CompanionManager {
     if (!(companion instanceof TFile)) return;
     const content = await this.buildContent(file);
     await this.app.vault.modify(companion, content);
+  }
+
+  async deleteAllCompanions(): Promise<void> {
+    try {
+      const files = this.app.vault.getFiles();
+      let deleted = 0;
+
+      for (const file of files) {
+        if (!isCompanionNote(file)) continue;
+        await this.app.vault.delete(file);
+        deleted++;
+      }
+
+      new Notice(`Attachment Bases: deleted ${deleted} companion note${deleted === 1 ? "" : "s"}.`);
+    } catch (e) {
+      console.error("Attachment Bases: deleteAllCompanions failed", e);
+      new Notice("Attachment Bases: error while deleting companions — check the console for details.");
+    }
+  }
+
+  async moveAllCompanionsToFolder(): Promise<void> {
+    const folder = this.settings.companionFolder;
+    if (!folder) {
+      new Notice("Attachment Bases: set a companion folder in settings before moving companions.");
+      return;
+    }
+
+    try {
+      try {
+        await this.app.vault.createFolder(folder);
+      } catch {
+        // folder already exists, continue
+      }
+
+      const files = this.app.vault.getFiles();
+      let moved = 0;
+
+      for (const file of files) {
+        if (!isCompanionNote(file)) continue;
+        const attachmentName = file.name.slice(0, -3); // e.g. "photo.jpg"
+        const targetPath = normalizePath(`${folder}/${attachmentName}.md`);
+        if (file.path === targetPath) continue;
+        if (this.app.vault.getAbstractFileByPath(targetPath)) continue;
+        await this.app.vault.rename(file, targetPath);
+        moved++;
+      }
+
+      new Notice(`Attachment Bases: moved ${moved} companion note${moved === 1 ? "" : "s"} to ${folder}.`);
+    } catch (e) {
+      console.error("Attachment Bases: moveAllCompanionsToFolder failed", e);
+      new Notice("Attachment Bases: error while moving companions — check the console for details.");
+    }
   }
 
   private getCompanionPath(file: TFile): string {
