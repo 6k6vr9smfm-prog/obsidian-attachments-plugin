@@ -16,7 +16,7 @@ export function isAttachment(file: TFile): boolean {
   return ATTACHMENT_EXTENSIONS.has(file.extension.toLowerCase());
 }
 
-export function isCompanionNote(file: TFile): boolean {
+export function isTwinNote(file: TFile): boolean {
   if (file.extension !== "md") return false;
   const nameWithoutMd = file.name.slice(0, -3);
   const lastDot = nameWithoutMd.lastIndexOf(".");

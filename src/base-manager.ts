@@ -9,13 +9,10 @@ views:
   - type: table
     name: Table
     order:
-      - file.name
       - attachment
       - type
-      - extension
       - size
       - created
-      - modified
 `;
 
 export async function createAttachmentsBase(app: App): Promise<void> {

@@ -1,5 +1,5 @@
-import { App, Modal, Plugin, Setting, TAbstractFile, TFile } from "obsidian";
-import { CompanionManager } from "./companion-manager";
+import { App, Menu, Modal, Plugin, Setting, TAbstractFile, TFile } from "obsidian";
+import { TwinManager } from "./twin-manager";
 import { isAttachment } from "./attachment-utils";
 import {
   AttachmentsManagerSettings,
@@ -38,11 +38,11 @@ class ConfirmModal extends Modal {
 
 export default class AttachmentsManagerPlugin extends Plugin {
   settings: AttachmentsManagerSettings;
-  private companionManager: CompanionManager;
+  private twinManager: TwinManager;
 
   async onload() {
     await this.loadSettings();
-    this.companionManager = new CompanionManager(this.app, this.settings);
+    this.twinManager = new TwinManager(this.app, this.settings);
 
     this.addSettingTab(new AttachmentsManagerSettingsTab(this.app, this));
 
@@ -54,14 +54,14 @@ export default class AttachmentsManagerPlugin extends Plugin {
       }
 
       if (this.settings.syncOnStartup) {
-        await this.companionManager.syncAll();
+        await this.twinManager.syncAll();
       }
     });
 
     this.registerEvent(
       this.app.vault.on("create", (file: TAbstractFile) => {
         if (file instanceof TFile && isAttachment(file)) {
-          this.companionManager.createCompanion(file);
+          this.twinManager.createTwin(file).catch(console.error);
         }
       })
     );
@@ -69,7 +69,7 @@ export default class AttachmentsManagerPlugin extends Plugin {
     this.registerEvent(
       this.app.vault.on("delete", (file: TAbstractFile) => {
         if (file instanceof TFile && isAttachment(file)) {
-          this.companionManager.deleteCompanion(file.path);
+          this.twinManager.deleteTwin(file.path).catch(console.error);
         }
       })
     );
@@ -77,15 +77,27 @@ export default class AttachmentsManagerPlugin extends Plugin {
     this.registerEvent(
       this.app.vault.on("rename", (file: TAbstractFile, oldPath: string) => {
         if (file instanceof TFile && isAttachment(file)) {
-          this.companionManager.renameCompanion(oldPath, file);
+          this.twinManager.renameTwin(oldPath, file).catch(console.error);
         }
+      })
+    );
+
+    this.registerEvent(
+      this.app.workspace.on("file-menu", (menu: Menu, file: TAbstractFile) => {
+        if (!(file instanceof TFile) || !isAttachment(file)) return;
+        menu.addItem((item) =>
+          item
+            .setTitle("Resync twin file")
+            .setIcon("refresh-cw")
+            .onClick(() => this.twinManager.resyncTwin(file).catch(console.error))
+        );
       })
     );
 
     this.addCommand({
       id: "sync-all-attachments",
-      name: "Sync all attachment companions",
-      callback: () => this.companionManager.syncAll(),
+      name: "Sync all attachment twin files",
+      callback: () => this.twinManager.syncAll(),
     });
 
     this.addCommand({
@@ -97,19 +109,19 @@ export default class AttachmentsManagerPlugin extends Plugin {
     });
 
     this.addCommand({
-      id: "move-companions-to-folder",
-      name: "Move all companion notes to configured folder",
-      callback: () => this.companionManager.moveAllCompanionsToFolder(),
+      id: "move-twins-to-folder",
+      name: "Move all twin files to configured folder",
+      callback: () => this.twinManager.moveAllTwinsToFolder(),
     });
 
     this.addCommand({
-      id: "delete-all-companions",
-      name: "Delete all companion notes",
+      id: "delete-all-twins",
+      name: "Delete all twin files",
       callback: () => {
         new ConfirmModal(
           this.app,
-          "This will permanently delete all companion notes in your vault. This cannot be undone. Are you sure?",
-          () => this.companionManager.deleteAllCompanions()
+          "This will permanently delete all twin files in your vault. This cannot be undone. Are you sure?",
+          () => this.twinManager.deleteAllTwins()
         ).open();
       },
     });

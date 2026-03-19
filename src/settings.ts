@@ -3,7 +3,7 @@ import type AttachmentsManagerPlugin from "./main";
 
 export interface AttachmentsManagerSettings {
   excludePatterns: string[];
-  companionFolder: string; // empty string = same folder as attachment
+  twinFolder: string; // empty string = same folder as attachment
   syncOnStartup: boolean;
   watchedFolders: string[]; // empty = watch entire vault
   hasCreatedBase: boolean;
@@ -11,9 +11,9 @@ export interface AttachmentsManagerSettings {
 
 export const DEFAULT_SETTINGS: AttachmentsManagerSettings = {
   excludePatterns: [],
-  companionFolder: "",
+  twinFolder: "attachments/twins",
   syncOnStartup: true,
-  watchedFolders: [],
+  watchedFolders: ["attachments"],
   hasCreatedBase: false,
 };
 
@@ -28,7 +28,7 @@ export class AttachmentsManagerSettingsTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Sync on startup")
-      .setDesc("Automatically create companion notes for all attachments when the plugin loads.")
+      .setDesc("Automatically create twin files for all attachments when the plugin loads.")
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.syncOnStartup)
@@ -39,35 +39,16 @@ export class AttachmentsManagerSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Companion folder")
+      .setName("Twins folder")
       .setDesc(
-        "Folder where companion notes are created. Leave empty to place them next to the attachment."
+        "Folder where twin files are created. Leave empty to place them next to the attachment."
       )
       .addText((text) =>
         text
-          .setPlaceholder("e.g. _meta or attachments/notes")
-          .setValue(this.plugin.settings.companionFolder)
+          .setPlaceholder("e.g. attachments/twins")
+          .setValue(this.plugin.settings.twinFolder)
           .onChange(async (value) => {
-            this.plugin.settings.companionFolder = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("Exclude patterns")
-      .setDesc(
-        "Comma-separated list of path prefixes to ignore (e.g. archive/, private/). " +
-          "Attachments inside matching folders will not get companion notes."
-      )
-      .addTextArea((text) =>
-        text
-          .setPlaceholder("archive/, private/, temp/")
-          .setValue(this.plugin.settings.excludePatterns.join(", "))
-          .onChange(async (value) => {
-            this.plugin.settings.excludePatterns = value
-              .split(",")
-              .map((s) => s.trim())
-              .filter((s) => s.length > 0);
+            this.plugin.settings.twinFolder = value.trim();
             await this.plugin.saveSettings();
           })
       );
@@ -84,6 +65,25 @@ export class AttachmentsManagerSettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.watchedFolders.join(", "))
           .onChange(async (value) => {
             this.plugin.settings.watchedFolders = value
+              .split(",")
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0);
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Exclude patterns")
+      .setDesc(
+        "Comma-separated list of path prefixes to ignore (e.g. archive/, private/). " +
+          "Attachments inside matching folders will not get twin files."
+      )
+      .addTextArea((text) =>
+        text
+          .setPlaceholder("archive/, private/, temp/")
+          .setValue(this.plugin.settings.excludePatterns.join(", "))
+          .onChange(async (value) => {
+            this.plugin.settings.excludePatterns = value
               .split(",")
               .map((s) => s.trim())
               .filter((s) => s.length > 0);
