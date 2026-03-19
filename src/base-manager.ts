@@ -4,12 +4,12 @@ const BASE_FILE_NAME = "Attachments.base";
 
 const BASE_CONTENT = `filters:
   and:
-    - attachment != null
+    - attachm3nt != null
 views:
   - type: table
     name: Table
     order:
-      - attachment
+      - attachm3nt
       - type
       - size
       - created
