@@ -177,6 +177,8 @@ export class TwinManager {
     return [
       "---",
       `attachm3nt: "[[${meta.attachment}]]"`,
+      `categories:`,
+      `  - attachments`,
       `type: ${meta.type}`,
       `extension: ${meta.extension}`,
       `size: ${meta.size}`,
