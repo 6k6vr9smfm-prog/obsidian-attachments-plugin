@@ -48,7 +48,7 @@ export default class AttachmentsManagerPlugin extends Plugin {
 
     this.app.workspace.onLayoutReady(async () => {
       if (!this.settings.hasCreatedBase) {
-        await createAttachmentsBase(this.app);
+        await createAttachmentsBase(this.app, this.settings.watchedFolders);
         this.settings.hasCreatedBase = true;
         await this.saveSettings();
       }
@@ -104,7 +104,7 @@ export default class AttachmentsManagerPlugin extends Plugin {
       id: "create-attachments-base",
       name: "Create Attachments Base",
       callback: async () => {
-        await createAttachmentsBase(this.app);
+        await createAttachmentsBase(this.app, this.settings.watchedFolders);
       },
     });
 

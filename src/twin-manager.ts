@@ -41,12 +41,9 @@ export class TwinManager {
     }
 
     // Generate preview before building content
-    let previewPath: string | undefined;
-    if (this.settings.generatePreviews) {
-      previewPath = isImage(file)
-        ? file.path
-        : await this.generateAndSavePreview(file);
-    }
+    const previewPath: string | undefined = isImage(file)
+      ? file.path
+      : await this.generateAndSavePreview(file);
 
     const content = await this.buildContent(file, previewPath);
     // Re-check after awaits: a concurrent createTwin call may have already created this file
