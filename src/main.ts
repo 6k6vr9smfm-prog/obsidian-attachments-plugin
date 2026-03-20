@@ -1,4 +1,4 @@
-import { App, Menu, Modal, Plugin, Setting, TAbstractFile, TFile } from "obsidian";
+import { App, Menu, Modal, Notice, Plugin, Setting, TAbstractFile, TFile } from "obsidian";
 import { TwinManager } from "./twin-manager";
 import { isAttachment } from "./attachment-utils";
 import {
@@ -47,11 +47,9 @@ export default class AttachmentsManagerPlugin extends Plugin {
     this.addSettingTab(new AttachmentsManagerSettingsTab(this.app, this));
 
     this.app.workspace.onLayoutReady(async () => {
-      if (!this.settings.hasCreatedBase) {
-        await createAttachmentsBase(this.app, this.settings.watchedFolders);
-        this.settings.hasCreatedBase = true;
-        await this.saveSettings();
-      }
+      await createAttachmentsBase(this.app, this.settings.watchedFolders);
+
+      await this.ensureDefaultTemplate();
 
       if (this.settings.syncOnStartup) {
         await this.twinManager.syncAll();
@@ -97,14 +95,26 @@ export default class AttachmentsManagerPlugin extends Plugin {
     this.addCommand({
       id: "sync-all-attachments",
       name: "Sync all attachment twin files",
-      callback: () => this.twinManager.syncAll(),
+      callback: async () => {
+        try {
+          await this.twinManager.syncAll();
+        } catch (e) {
+          console.error("Attachment Bases: syncAll failed", e);
+          new Notice("Attachment Bases: sync failed — check the console for details.");
+        }
+      },
     });
 
     this.addCommand({
       id: "create-attachments-base",
       name: "Create Attachments Base",
       callback: async () => {
-        await createAttachmentsBase(this.app, this.settings.watchedFolders);
+        try {
+          await createAttachmentsBase(this.app, this.settings.watchedFolders);
+        } catch (e) {
+          console.error("Attachment Bases: createAttachmentsBase failed", e);
+          new Notice("Attachment Bases: failed to create base file — check the console for details.");
+        }
       },
     });
 
@@ -112,6 +122,20 @@ export default class AttachmentsManagerPlugin extends Plugin {
       id: "move-twins-to-folder",
       name: "Move all twin files to configured folder",
       callback: () => this.twinManager.moveAllTwinsToFolder(),
+    });
+
+    this.addCommand({
+      id: "create-default-template",
+      name: "Create default twin template",
+      callback: async () => {
+        try {
+          const path = this.settings.templatePath || "templates/attachment.md";
+          await this.createDefaultTemplate(path);
+        } catch (e) {
+          console.error("Attachment Bases: createDefaultTemplate failed", e);
+          new Notice("Attachment Bases: failed to create template — check the console for details.");
+        }
+      },
     });
 
     this.addCommand({
@@ -125,6 +149,49 @@ export default class AttachmentsManagerPlugin extends Plugin {
         ).open();
       },
     });
+  }
+
+  private async ensureDefaultTemplate(): Promise<void> {
+    const path = this.settings.templatePath;
+    if (!path) return;
+    if (this.app.vault.getAbstractFileByPath(path)) return;
+    await this.createDefaultTemplate(path);
+  }
+
+  async createDefaultTemplate(path: string): Promise<void> {
+    const folder = path.split("/").slice(0, -1).join("/");
+    if (folder) {
+      try {
+        await this.app.vault.createFolder(folder);
+      } catch {
+        // already exists
+      }
+    }
+
+    // If a file already exists at this path, add a numeric suffix
+    let targetPath = path;
+    if (this.app.vault.getAbstractFileByPath(targetPath)) {
+      const withoutExt = path.replace(/\.md$/, "");
+      let i = 1;
+      while (this.app.vault.getAbstractFileByPath(`${withoutExt}-${i}.md`)) i++;
+      targetPath = `${withoutExt}-${i}.md`;
+    }
+
+    const content = [
+      "---",
+      `is_twin_file: true`,
+      `attachment_file: "[[<% tp.file.title %>]]"`,
+      `categories:`,
+      `  - attachments`,
+      `created: <% tp.date.now("YYYY-MM-DD") %>`,
+      "---",
+      "",
+      `![[<% tp.file.title %>]]`,
+      "",
+    ].join("\n");
+
+    const file = await this.app.vault.create(targetPath, content);
+    this.app.workspace.getLeaf().openFile(file);
   }
 
   async loadSettings() {

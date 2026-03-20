@@ -1,4 +1,5 @@
 node_modules/
 plugin-testing-vault/
+testing set/
 main.js
 .DS_Store

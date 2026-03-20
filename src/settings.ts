@@ -6,7 +6,7 @@ export interface AttachmentsManagerSettings {
   twinFolder: string; // empty string = same folder as attachment
   syncOnStartup: boolean;
   watchedFolders: string[]; // empty = watch entire vault
-  hasCreatedBase: boolean;
+  templatePath: string; // Templater template path, empty = use default content
 }
 
 export const DEFAULT_SETTINGS: AttachmentsManagerSettings = {
@@ -14,7 +14,7 @@ export const DEFAULT_SETTINGS: AttachmentsManagerSettings = {
   twinFolder: "attachments/twins",
   syncOnStartup: true,
   watchedFolders: ["attachments"],
-  hasCreatedBase: false,
+  templatePath: "templates/attachment.md",
 };
 
 export class AttachmentsManagerSettingsTab extends PluginSettingTab {
@@ -68,6 +68,23 @@ export class AttachmentsManagerSettingsTab extends PluginSettingTab {
               .split(",")
               .map((s) => s.trim())
               .filter((s) => s.length > 0);
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Templater template")
+      .setDesc(
+        "Path to a Templater template file to use when creating twin files (e.g. templates/attachment.md). " +
+          "Leave empty to use the default content. " +
+          "In the template, use tp.file.title to get the attachment filename."
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder("templates/attachment.md")
+          .setValue(this.plugin.settings.templatePath)
+          .onChange(async (value) => {
+            this.plugin.settings.templatePath = value.trim();
             await this.plugin.saveSettings();
           })
       );

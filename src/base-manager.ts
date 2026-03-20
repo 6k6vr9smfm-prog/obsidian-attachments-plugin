@@ -4,21 +4,18 @@ const DEFAULT_BASE_NAME = "attachments.base";
 
 const BASE_CONTENT = `filters:
   and:
-    - attachm3nt != null
+    - is_twin_file == true
 views:
   - type: cards
     name: Cards
-    image: note.preview
     order:
-      - attachm3nt
-      - preview
-      - type
-      - size
+      - file.basename
       - created
+    image: note.preview
 `;
 
 function getBaseName(watchedFolders: string[]): string {
-  if (watchedFolders.length === 0) return DEFAULT_BASE_NAME;
+  if (watchedFolders.length !== 1) return DEFAULT_BASE_NAME;
   const folder = watchedFolders[0].replace(/\/$/, "");
   const name = folder.split("/").pop() ?? folder;
   return `${name}.base`;

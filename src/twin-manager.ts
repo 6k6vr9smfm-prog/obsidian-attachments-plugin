@@ -1,4 +1,4 @@
-import { App, Notice, TFile, normalizePath } from "obsidian";
+import { App, Notice, TFile, TFolder, normalizePath } from "obsidian";
 import { getAttachmentType, isAttachment, isImage, isTwinNote } from "./attachment-utils";
 import { generateThumbnail } from "./thumbnail-generator";
 import type { AttachmentsManagerSettings } from "./settings";
@@ -13,12 +13,32 @@ interface AttachmentMetadata {
 }
 
 export class TwinManager {
+  private inProgress = new Set<string>();
+
   constructor(private app: App, private settings: AttachmentsManagerSettings) {}
 
   async syncAll(): Promise<void> {
-    const files = this.app.vault.getFiles();
+    let files: TFile[];
+    if (this.settings.watchedFolders.length > 0) {
+      files = this.settings.watchedFolders.flatMap((folder) => {
+        const node = this.app.vault.getFolderByPath(folder);
+        if (!node) return [] as TFile[];
+        const result: TFile[] = [];
+        const recurse = (f: TFolder) => {
+          for (const child of f.children) {
+            if (child instanceof TFile) result.push(child);
+            else recurse(child as TFolder);
+          }
+        };
+        recurse(node);
+        return result;
+      });
+    } else {
+      files = this.app.vault.getFiles();
+    }
+
     for (const file of files) {
-      if (isAttachment(file) && !this.isExcluded(file.path) && this.isInWatchedFolder(file.path)) {
+      if (isAttachment(file) && !this.isExcluded(file.path)) {
         await this.createTwin(file);
       }
     }
@@ -29,26 +49,32 @@ export class TwinManager {
     if (!this.isInWatchedFolder(file.path)) return;
     const twinPath = this.getTwinPath(file);
     if (this.app.vault.getAbstractFileByPath(twinPath)) return;
-
-    // Ensure twin folder exists if configured
-    const folder = this.settings.twinFolder;
-    if (folder) {
-      try {
-        await this.app.vault.createFolder(folder);
-      } catch {
-        // folder already exists, continue
+    if (this.inProgress.has(twinPath)) return;
+    this.inProgress.add(twinPath);
+    try {
+      // Ensure twin folder exists if configured
+      const folder = this.settings.twinFolder;
+      if (folder) {
+        try {
+          await this.app.vault.createFolder(folder);
+        } catch {
+          // folder already exists, continue
+        }
       }
+
+      // Generate preview before building content
+      const previewPath: string | undefined = isImage(file)
+        ? file.path
+        : await this.generateAndSavePreview(file);
+
+      const content = await this.buildContent(file, previewPath);
+      // Re-check after awaits: a concurrent createTwin call may have already created this file
+      if (this.app.vault.getAbstractFileByPath(twinPath)) return;
+      const twinFile = await this.app.vault.create(twinPath, content);
+      await this.applyTemplate(twinFile, file, previewPath);
+    } finally {
+      this.inProgress.delete(twinPath);
     }
-
-    // Generate preview before building content
-    const previewPath: string | undefined = isImage(file)
-      ? file.path
-      : await this.generateAndSavePreview(file);
-
-    const content = await this.buildContent(file, previewPath);
-    // Re-check after awaits: a concurrent createTwin call may have already created this file
-    if (this.app.vault.getAbstractFileByPath(twinPath)) return;
-    await this.app.vault.create(twinPath, content);
   }
 
   async deleteTwin(attachmentPath: string): Promise<void> {
@@ -78,10 +104,9 @@ export class TwinManager {
     const twin = this.app.vault.getAbstractFileByPath(twinPath);
     if (!(twin instanceof TFile)) return;
 
-    let previewPath: string | undefined;
-    if (this.settings.generatePreviews && file.extension.toLowerCase() === "pdf") {
-      previewPath = await this.generateAndSavePreview(file);
-    }
+    const previewPath: string | undefined = isImage(file)
+      ? file.path
+      : await this.generateAndSavePreview(file);
 
     const content = await this.buildContent(file, previewPath);
     await this.app.vault.modify(twin, content);
@@ -247,6 +272,42 @@ export class TwinManager {
     }
   }
 
+  // ── Templater integration ─────────────────────────────────────────────────────
+
+  private async applyTemplate(twinFile: TFile, attachmentFile: TFile, previewPath?: string): Promise<void> {
+    if (!this.settings.templatePath) return;
+
+    const templater = (this.app as any).plugins?.plugins?.["templater-obsidian"]?.templater;
+    if (!templater) {
+      console.warn("Attachment Bases: templatePath is set but Templater plugin is not installed.");
+      return;
+    }
+
+    const templateFile = this.app.vault.getAbstractFileByPath(this.settings.templatePath);
+    if (!(templateFile instanceof TFile)) {
+      console.warn(`Attachment Bases: template file not found at "${this.settings.templatePath}".`);
+      return;
+    }
+
+    try {
+      const config = templater.create_running_config(templateFile, twinFile, 2 /* OverwriteFile */);
+      const processed = await templater.read_and_parse_template(config);
+      await this.app.vault.modify(twinFile, processed);
+    } catch (e) {
+      console.error("Attachment Bases: Templater processing failed", e);
+      return;
+    }
+
+    // Guarantee core properties are always present regardless of what the template set
+    await this.app.fileManager.processFrontMatter(twinFile, (fm) => {
+      if (!fm["is_twin_file"]) fm["is_twin_file"] = true;
+      if (!fm["attachment_file"]) fm["attachment_file"] = `[[${attachmentFile.name}]]`;
+      if (previewPath && !fm["preview"]) {
+        fm["preview"] = `[[${previewPath.split("/").pop()!}]]`;
+      }
+    });
+  }
+
   // ── Content builder ───────────────────────────────────────────────────────────
 
   private async buildContent(file: TFile, previewPath?: string): Promise<string> {
@@ -264,7 +325,8 @@ export class TwinManager {
 
     const frontmatter = [
       "---",
-      `attachm3nt: "[[${meta.attachment}]]"`,
+      `is_twin_file: true`,
+      `attachment_file: "[[${meta.attachment}]]"`,
       ...(previewFilename ? [`preview: "[[${previewFilename}]]"`] : []),
       `categories:`,
       `  - attachments`,
