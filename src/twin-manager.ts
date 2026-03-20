@@ -1,5 +1,6 @@
 import { App, Notice, TFile, normalizePath } from "obsidian";
-import { getAttachmentType, isAttachment, isTwinNote } from "./attachment-utils";
+import { getAttachmentType, isAttachment, isImage, isTwinNote } from "./attachment-utils";
+import { generateThumbnail } from "./thumbnail-generator";
 import type { AttachmentsManagerSettings } from "./settings";
 
 interface AttachmentMetadata {
@@ -39,7 +40,15 @@ export class TwinManager {
       }
     }
 
-    const content = await this.buildContent(file);
+    // Generate preview before building content
+    let previewPath: string | undefined;
+    if (this.settings.generatePreviews) {
+      previewPath = isImage(file)
+        ? file.path
+        : await this.generateAndSavePreview(file);
+    }
+
+    const content = await this.buildContent(file, previewPath);
     // Re-check after awaits: a concurrent createTwin call may have already created this file
     if (this.app.vault.getAbstractFileByPath(twinPath)) return;
     await this.app.vault.create(twinPath, content);
@@ -51,9 +60,13 @@ export class TwinManager {
     if (twin instanceof TFile) {
       await this.app.vault.delete(twin);
     }
+    await this.deletePreviewForPath(attachmentPath);
   }
 
   async renameTwin(oldPath: string, newFile: TFile): Promise<void> {
+    // Delete old preview first; updateTwin will regenerate one for the new name
+    await this.deletePreviewForPath(oldPath);
+
     const oldTwinPath = this.getTwinPathFromRaw(oldPath);
     const oldTwin = this.app.vault.getAbstractFileByPath(oldTwinPath);
     if (oldTwin instanceof TFile) {
@@ -67,7 +80,13 @@ export class TwinManager {
     const twinPath = this.getTwinPath(file);
     const twin = this.app.vault.getAbstractFileByPath(twinPath);
     if (!(twin instanceof TFile)) return;
-    const content = await this.buildContent(file);
+
+    let previewPath: string | undefined;
+    if (this.settings.generatePreviews && file.extension.toLowerCase() === "pdf") {
+      previewPath = await this.generateAndSavePreview(file);
+    }
+
+    const content = await this.buildContent(file, previewPath);
     await this.app.vault.modify(twin, content);
   }
 
@@ -77,9 +96,8 @@ export class TwinManager {
     if (!this.isInWatchedFolder(file.path)) return;
     const twinPath = this.getTwinPath(file);
     const twin = this.app.vault.getAbstractFileByPath(twinPath);
-    const content = await this.buildContent(file);
     if (twin instanceof TFile) {
-      await this.app.vault.modify(twin, content);
+      await this.updateTwin(file);
     } else {
       await this.createTwin(file);
     }
@@ -95,6 +113,8 @@ export class TwinManager {
         await this.app.vault.delete(file);
         deleted++;
       }
+
+      await this.deleteAllPreviews();
 
       new Notice(`Attachment Bases: deleted ${deleted} twin file${deleted === 1 ? "" : "s"}.`);
     } catch (e) {
@@ -137,6 +157,8 @@ export class TwinManager {
     }
   }
 
+  // ── Path helpers ──────────────────────────────────────────────────────────────
+
   private getTwinPath(file: TFile): string {
     return this.getTwinPathFromRaw(file.path);
   }
@@ -150,7 +172,22 @@ export class TwinManager {
     return normalizePath(`${folder}/${fileName}.md`);
   }
 
+  private getPreviewFolder(): string {
+    const base = this.settings.twinFolder;
+    if (base) return normalizePath(`${base}/thumbnails`);
+    return "thumbnails";
+  }
+
+  private getPreviewPathFromRaw(attachmentPath: string): string {
+    const fileName = attachmentPath.split("/").pop() ?? attachmentPath;
+    return normalizePath(`${this.getPreviewFolder()}/${fileName}.png`);
+  }
+
+  // ── Exclusion / watch ─────────────────────────────────────────────────────────
+
   private isExcluded(filePath: string): boolean {
+    // Auto-exclude the thumbnails folder so preview PNGs never trigger twin creation
+    if (filePath.startsWith(this.getPreviewFolder() + "/")) return true;
     return this.settings.excludePatterns.some((pattern) =>
       filePath.startsWith(pattern)
     );
@@ -163,7 +200,59 @@ export class TwinManager {
     );
   }
 
-  private async buildContent(file: TFile): Promise<string> {
+  // ── Preview helpers ───────────────────────────────────────────────────────────
+
+  private async generateAndSavePreview(file: TFile): Promise<string | undefined> {
+    const previewPath = this.getPreviewPathFromRaw(file.path);
+    try {
+      try {
+        await this.app.vault.createFolder(this.getPreviewFolder());
+      } catch {
+        // already exists
+      }
+
+      const data = await generateThumbnail(this.app, file);
+      if (!data) return undefined;
+
+      const existing = this.app.vault.getAbstractFileByPath(previewPath);
+      if (existing instanceof TFile) {
+        await this.app.vault.modifyBinary(existing, data);
+      } else {
+        await this.app.vault.createBinary(previewPath, data);
+      }
+
+      return previewPath;
+    } catch (e) {
+      console.error("Attachment Bases: generateAndSavePreview failed", e);
+      return undefined;
+    }
+  }
+
+  private async deletePreviewForPath(attachmentPath: string): Promise<void> {
+    const previewPath = this.getPreviewPathFromRaw(attachmentPath);
+    const preview = this.app.vault.getAbstractFileByPath(previewPath);
+    if (preview instanceof TFile) {
+      await this.app.vault.delete(preview);
+    }
+  }
+
+  private async deleteAllPreviews(): Promise<void> {
+    const folder = this.getPreviewFolder();
+    const files = this.app.vault.getFiles();
+    for (const file of files) {
+      if (file.path.startsWith(folder + "/")) {
+        try {
+          await this.app.vault.delete(file);
+        } catch {
+          // ignore individual errors
+        }
+      }
+    }
+  }
+
+  // ── Content builder ───────────────────────────────────────────────────────────
+
+  private async buildContent(file: TFile, previewPath?: string): Promise<string> {
     const stat = await this.app.vault.adapter.stat(file.path);
     const meta: AttachmentMetadata = {
       attachment: file.name,
@@ -174,9 +263,12 @@ export class TwinManager {
       modified: stat?.mtime ? new Date(stat.mtime).toISOString().split("T")[0] : "",
     };
 
-    return [
+    const previewFilename = previewPath ? previewPath.split("/").pop()! : undefined;
+
+    const frontmatter = [
       "---",
       `attachm3nt: "[[${meta.attachment}]]"`,
+      ...(previewFilename ? [`preview: "[[${previewFilename}]]"`] : []),
       `categories:`,
       `  - attachments`,
       `type: ${meta.type}`,
@@ -186,8 +278,13 @@ export class TwinManager {
       `modified: ${meta.modified}`,
       "---",
       "",
+    ];
+
+    const body = [
       `![[${meta.attachment}]]`,
       "",
-    ].join("\n");
+    ];
+
+    return [...frontmatter, ...body].join("\n");
   }
 }

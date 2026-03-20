@@ -5,6 +5,7 @@ export interface AttachmentsManagerSettings {
   excludePatterns: string[];
   twinFolder: string; // empty string = same folder as attachment
   syncOnStartup: boolean;
+  generatePreviews: boolean;
   watchedFolders: string[]; // empty = watch entire vault
   hasCreatedBase: boolean;
 }
@@ -13,6 +14,7 @@ export const DEFAULT_SETTINGS: AttachmentsManagerSettings = {
   excludePatterns: [],
   twinFolder: "attachments/twins",
   syncOnStartup: true,
+  generatePreviews: true,
   watchedFolders: ["attachments"],
   hasCreatedBase: false,
 };
@@ -49,6 +51,21 @@ export class AttachmentsManagerSettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.twinFolder)
           .onChange(async (value) => {
             this.plugin.settings.twinFolder = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Generate PDF previews")
+      .setDesc(
+        "Automatically generate a PNG thumbnail of the first page for PDF attachments " +
+          "and embed it in the twin file. Thumbnails are stored in {twins folder}/thumbnails/."
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.generatePreviews)
+          .onChange(async (value) => {
+            this.plugin.settings.generatePreviews = value;
             await this.plugin.saveSettings();
           })
       );

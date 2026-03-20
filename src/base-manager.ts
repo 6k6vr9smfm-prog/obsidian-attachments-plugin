@@ -10,6 +10,7 @@ views:
     name: Table
     order:
       - attachm3nt
+      - preview
       - type
       - size
       - created

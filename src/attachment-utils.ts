@@ -12,6 +12,10 @@ export const ATTACHMENT_EXTENSIONS = new Set([
   ...VIDEO_EXTENSIONS,
 ]);
 
+export function isImage(file: TFile): boolean {
+  return IMAGE_EXTENSIONS.has(file.extension.toLowerCase());
+}
+
 export function isAttachment(file: TFile): boolean {
   return ATTACHMENT_EXTENSIONS.has(file.extension.toLowerCase());
 }
