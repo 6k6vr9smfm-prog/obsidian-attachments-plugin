@@ -28,12 +28,17 @@ const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "ogg", "m4a", "flac", "aac"]);
 
 // ── PDF ───────────────────────────────────────────────────────────────────────
 
+const PDF_TIMEOUT_MS = 15_000;
+
 async function generatePdfThumbnail(
   app: App,
   file: TFile
 ): Promise<ArrayBuffer | null> {
   try {
-    const pdfjsLib = await loadPdfJs();
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("loadPdfJs timeout")), PDF_TIMEOUT_MS)
+    );
+    const pdfjsLib = await Promise.race([loadPdfJs(), timeout]);
     const arrayBuffer = await app.vault.readBinary(file);
 
     const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });

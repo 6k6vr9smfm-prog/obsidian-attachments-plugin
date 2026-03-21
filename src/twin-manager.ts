@@ -299,11 +299,18 @@ export class TwinManager {
     }
 
     // Guarantee core properties are always present regardless of what the template set
+    const stat = await this.app.vault.adapter.stat(attachmentFile.path);
     await this.app.fileManager.processFrontMatter(twinFile, (fm) => {
       if (!fm["is_twin_file"]) fm["is_twin_file"] = true;
       if (!fm["attachment_file"]) fm["attachment_file"] = `[[${attachmentFile.name}]]`;
       if (previewPath && !fm["preview"]) {
         fm["preview"] = `[[${previewPath.split("/").pop()!}]]`;
+      }
+      if (!fm["type"]) fm["type"] = getAttachmentType(attachmentFile.extension);
+      if (!fm["extension"]) fm["extension"] = attachmentFile.extension.toLowerCase();
+      if (!fm["size"] && stat?.size) fm["size"] = stat.size;
+      if (!fm["modified"] && stat?.mtime) {
+        fm["modified"] = new Date(stat.mtime).toISOString().split("T")[0];
       }
     });
   }
