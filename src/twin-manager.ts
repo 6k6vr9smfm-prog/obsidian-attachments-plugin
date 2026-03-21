@@ -300,16 +300,19 @@ export class TwinManager {
 
     // Guarantee core properties are always present regardless of what the template set
     const stat = await this.app.vault.adapter.stat(attachmentFile.path);
+    const enabled = new Set(this.settings.enabledTwinProperties);
     await this.app.fileManager.processFrontMatter(twinFile, (fm) => {
+      // Mandatory — always set
       if (!fm["is_twin_file"]) fm["is_twin_file"] = true;
       if (!fm["attachment_file"]) fm["attachment_file"] = `[[${attachmentFile.name}]]`;
       if (previewPath && !fm["preview"]) {
         fm["preview"] = `[[${previewPath.split("/").pop()!}]]`;
       }
-      if (!fm["type"]) fm["type"] = getAttachmentType(attachmentFile.extension);
-      if (!fm["extension"]) fm["extension"] = attachmentFile.extension.toLowerCase();
-      if (!fm["size"] && stat?.size) fm["size"] = stat.size;
-      if (!fm["modified"] && stat?.mtime) {
+      // Optional — only set if enabled
+      if (enabled.has("type") && !fm["type"]) fm["type"] = getAttachmentType(attachmentFile.extension);
+      if (enabled.has("extension") && !fm["extension"]) fm["extension"] = attachmentFile.extension.toLowerCase();
+      if (enabled.has("size") && !fm["size"] && stat?.size) fm["size"] = stat.size;
+      if (enabled.has("modified") && !fm["modified"] && stat?.mtime) {
         fm["modified"] = new Date(stat.mtime).toISOString().split("T")[0];
       }
     });
@@ -330,18 +333,19 @@ export class TwinManager {
 
     const previewFilename = previewPath ? previewPath.split("/").pop()! : undefined;
 
+    const enabled = new Set(this.settings.enabledTwinProperties);
+
     const frontmatter = [
       "---",
       `is_twin_file: true`,
       `attachment_file: "[[${meta.attachment}]]"`,
       ...(previewFilename ? [`preview: "[[${previewFilename}]]"`] : []),
-      `categories:`,
-      `  - attachments`,
-      `type: ${meta.type}`,
-      `extension: ${meta.extension}`,
-      `size: ${meta.size}`,
-      `created: ${meta.created}`,
-      `modified: ${meta.modified}`,
+      ...(enabled.has("categories") ? [`categories:`, `  - attachments`] : []),
+      ...(enabled.has("type")       ? [`type: ${meta.type}`] : []),
+      ...(enabled.has("extension")  ? [`extension: ${meta.extension}`] : []),
+      ...(enabled.has("size")       ? [`size: ${meta.size}`] : []),
+      ...(enabled.has("created")    ? [`created: ${meta.created}`] : []),
+      ...(enabled.has("modified")   ? [`modified: ${meta.modified}`] : []),
       "---",
       "",
     ];

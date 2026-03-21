@@ -81,12 +81,15 @@ cp_attach() {
 }
 
 cleanup() {
-  rm -f "$ATTACHMENTS"/*.pdf "$ATTACHMENTS"/*.mov "$ATTACHMENTS"/*.mp4 \
-       "$ATTACHMENTS"/*.gif "$ATTACHMENTS"/*.zip 2>/dev/null
+  # Remove twins/thumbnails FIRST so the plugin's delete handler finds nothing
   rm -f "$TWINS"/*.md 2>/dev/null
   rm -f "$THUMBNAILS"/*.png 2>/dev/null
-  rm -f "$VAULT"/*.pdf 2>/dev/null
   sleep 1
+  # Then remove attachments — plugin fires deleteTwin but twin is already gone (no-op)
+  rm -f "$ATTACHMENTS"/*.pdf "$ATTACHMENTS"/*.mov "$ATTACHMENTS"/*.mp4 \
+       "$ATTACHMENTS"/*.gif "$ATTACHMENTS"/*.zip 2>/dev/null
+  rm -f "$VAULT"/*.pdf 2>/dev/null
+  sleep 2
 }
 
 count_twins() {

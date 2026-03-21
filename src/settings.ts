@@ -1,12 +1,22 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type AttachmentsManagerPlugin from "./main";
 
+export const OPTIONAL_TWIN_PROPERTIES: { key: string; label: string; desc: string }[] = [
+  { key: "type",       label: "Type",       desc: "Attachment type (image, pdf, video, audio)" },
+  { key: "extension",  label: "Extension",  desc: "File extension (jpg, pdf, mp4, ...)" },
+  { key: "size",       label: "Size",       desc: "File size in bytes" },
+  { key: "created",    label: "Created",    desc: "File creation date" },
+  { key: "modified",   label: "Modified",   desc: "File modification date" },
+  { key: "categories", label: "Categories", desc: "Category tags (attachments)" },
+];
+
 export interface AttachmentsManagerSettings {
   excludePatterns: string[];
   twinFolder: string; // empty string = same folder as attachment
   syncOnStartup: boolean;
   watchedFolders: string[]; // empty = watch entire vault
   templatePath: string; // Templater template path, empty = use default content
+  enabledTwinProperties: string[];
 }
 
 export const DEFAULT_SETTINGS: AttachmentsManagerSettings = {
@@ -15,6 +25,7 @@ export const DEFAULT_SETTINGS: AttachmentsManagerSettings = {
   syncOnStartup: true,
   watchedFolders: ["attachments"],
   templatePath: "templates/attachment.md",
+  enabledTwinProperties: ["type", "extension", "size", "created", "modified", "categories"],
 };
 
 export class AttachmentsManagerSettingsTab extends PluginSettingTab {
@@ -107,5 +118,29 @@ export class AttachmentsManagerSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    containerEl.createEl("h3", { text: "Twin file properties" });
+    containerEl.createEl("p", {
+      text: "Choose which optional properties are included in twin file frontmatter. " +
+        "Mandatory properties (is_twin_file, attachment_file, preview) are always included.",
+      cls: "setting-item-description",
+    });
+
+    for (const prop of OPTIONAL_TWIN_PROPERTIES) {
+      new Setting(containerEl)
+        .setName(prop.label)
+        .setDesc(prop.desc)
+        .addToggle((toggle) =>
+          toggle
+            .setValue(this.plugin.settings.enabledTwinProperties.includes(prop.key))
+            .onChange(async (value) => {
+              const set = new Set(this.plugin.settings.enabledTwinProperties);
+              if (value) set.add(prop.key);
+              else set.delete(prop.key);
+              this.plugin.settings.enabledTwinProperties = [...set];
+              await this.plugin.saveSettings();
+            })
+        );
+    }
   }
 }
