@@ -91,12 +91,28 @@ export class TwinManager {
     const oldPreviewPath = this.settings.generatePreviews ? getPreviewThumbnailPath(oldPath, this.settings) : '';
     const newPreviewPath = this.settings.generatePreviews ? getPreviewThumbnailPath(newPath, this.settings) : '';
 
+    console.debug('Attachment Bases renameTwin:', {
+      oldPath, newPath, oldTwinPath, newTwinPath,
+      generatePreviews: this.settings.generatePreviews,
+      oldPreviewPath, newPreviewPath,
+    });
+
     // Rename preview file if it exists
     if (oldPreviewPath) {
       const previewFile = this.vault.getAbstractFileByPath(oldPreviewPath);
+      console.debug('Attachment Bases: preview file lookup result:', {
+        oldPreviewPath,
+        found: !!previewFile,
+        isTFile: previewFile instanceof TFile,
+      });
       if (previewFile && previewFile instanceof TFile) {
-        await this.ensureParentFolder(newPreviewPath);
-        await this.vault.rename(previewFile, newPreviewPath);
+        try {
+          await this.ensureParentFolder(newPreviewPath);
+          await this.vault.rename(previewFile, newPreviewPath);
+          console.debug('Attachment Bases: preview renamed successfully');
+        } catch (e) {
+          console.error('Attachment Bases: failed to rename preview', oldPreviewPath, e);
+        }
       }
     }
 
@@ -107,9 +123,12 @@ export class TwinManager {
     let updatedContent = existingContent
       .replace(new RegExp(escapeRegExp(oldPath), 'g'), newPath);
 
-    if (oldPreviewPath) {
+    // Always attempt preview path replacement in content, even if the file wasn't found
+    if (oldPreviewPath && newPreviewPath) {
+      const beforeReplace = updatedContent;
       updatedContent = updatedContent
         .replace(new RegExp(escapeRegExp(oldPreviewPath), 'g'), newPreviewPath);
+      console.debug('Attachment Bases: preview path replaced in content:', beforeReplace !== updatedContent);
     }
 
     await this.vault.rename(twin, newTwinPath);
@@ -143,19 +162,21 @@ export class TwinManager {
 
   async deleteAllTwins(): Promise<number> {
     let count = 0;
-    const files = this.vault.getFiles();
 
-    for (const file of files) {
-      if (isTwinFile(file.path, this.settings)) {
-        await this.vault.delete(file);
-        count++;
-      }
+    // Snapshot file lists before deleting to avoid live array mutation
+    const twins = this.vault.getFiles().filter(f => isTwinFile(f.path, this.settings));
+    const previews = this.vault.getFiles().filter(f => isPreviewThumbnail(f.path));
+
+    for (const file of twins) {
+      await this.vault.delete(file);
+      count++;
     }
 
-    // Also clean up orphan preview thumbnails
-    for (const file of this.vault.getFiles()) {
-      if (isPreviewThumbnail(file.path)) {
+    for (const file of previews) {
+      try {
         await this.vault.delete(file);
+      } catch {
+        // Preview may already have been deleted
       }
     }
 

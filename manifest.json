@@ -1,7 +1,7 @@
 {
   "id": "attachment-bases",
   "name": "Attachment Bases",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "minAppVersion": "1.7.2",
   "description": "Manage non-markdown attachments through Obsidian Bases by creating twin metadata files.",
   "author": "Miguel Baquero",
