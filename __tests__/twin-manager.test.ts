@@ -130,6 +130,83 @@ attachment-preview: ""
       ).resolves.toBeUndefined();
     });
 
+    it('renames the preview file and updates attachment-preview when previews are enabled', async () => {
+      settings.generatePreviews = true;
+      settings.previewFolder = 'attachments/twins/previews';
+      manager = new TwinManager(vault as any, settings);
+
+      // Seed old preview file
+      vault.seed('attachments/twins/previews/report.pdf.preview.png', 'binary-thumb');
+      // Seed old twin with preview reference
+      vault.seed('attachments/twins/report.pdf.md', `---
+attachment: "[[attachments/report.pdf]]"
+attachment-type: pdf
+categories: attachments
+attachment-size: 4096
+created: 2024-04-04
+modified: 2024-04-04
+attachment-preview: "[[attachments/twins/previews/report.pdf.preview.png]]"
+---
+
+![[attachments/report.pdf]]`);
+
+      await manager.renameTwin('attachments/report.pdf', 'attachments/informe.pdf');
+
+      // Twin renamed
+      expect(vault.has('attachments/twins/report.pdf.md')).toBe(false);
+      expect(vault.has('attachments/twins/informe.pdf.md')).toBe(true);
+
+      // Preview file renamed
+      expect(vault.has('attachments/twins/previews/report.pdf.preview.png')).toBe(false);
+      expect(vault.has('attachments/twins/previews/informe.pdf.preview.png')).toBe(true);
+
+      // Twin content updated
+      const content = vault.getContent('attachments/twins/informe.pdf.md')!;
+      expect(content).toContain('attachment: "[[attachments/informe.pdf]]"');
+      expect(content).toContain('attachment-preview: "[[attachments/twins/previews/informe.pdf.preview.png]]"');
+      expect(content).not.toContain('report.pdf');
+    });
+
+    it('renames preview in subdirectory when attachment moves', async () => {
+      settings.generatePreviews = true;
+      settings.previewFolder = 'attachments/twins/previews';
+      manager = new TwinManager(vault as any, settings);
+
+      vault.seed('attachments/twins/previews/sub/doc.pdf.preview.png', 'binary-thumb');
+      vault.seed('attachments/twins/sub/doc.pdf.md', `---
+attachment: "[[attachments/sub/doc.pdf]]"
+attachment-type: pdf
+attachment-preview: "[[attachments/twins/previews/sub/doc.pdf.preview.png]]"
+---
+
+![[attachments/sub/doc.pdf]]`);
+
+      await manager.renameTwin('attachments/sub/doc.pdf', 'attachments/other/doc.pdf');
+
+      expect(vault.has('attachments/twins/previews/sub/doc.pdf.preview.png')).toBe(false);
+      expect(vault.has('attachments/twins/previews/other/doc.pdf.preview.png')).toBe(true);
+    });
+
+    it('does not touch preview when attachment is an image (preview is self-referencing)', async () => {
+      settings.generatePreviews = true;
+      settings.previewFolder = 'attachments/twins/previews';
+      manager = new TwinManager(vault as any, settings);
+
+      vault.seed('attachments/twins/photo.png.md', `---
+attachment: "[[attachments/photo.png]]"
+attachment-type: image
+attachment-preview: "[[attachments/photo.png]]"
+---
+
+![[attachments/photo.png]]`);
+
+      await manager.renameTwin('attachments/photo.png', 'attachments/pic.png');
+
+      // No preview file to rename for images
+      const content = vault.getContent('attachments/twins/pic.png.md')!;
+      expect(content).toContain('attachment-preview: "[[attachments/pic.png]]"');
+    });
+
     it('handles move to different subdirectory', async () => {
       vault.seed('attachments/twins/photo.png.md', `---
 attachment: "[[attachments/photo.png]]"
@@ -215,6 +292,21 @@ attachment-preview: ""
     it('returns 0 when no twins exist', async () => {
       const count = await manager.deleteAllTwins();
       expect(count).toBe(0);
+    });
+
+    it('also deletes orphan preview files', async () => {
+      vault.seed('attachments/twins/a.png.md', '---\nattachment-type: image\n---');
+      vault.seed('attachments/twins/previews/b.pdf.preview.png', 'binary-thumb');
+      vault.seed('attachments/twins/previews/sub/c.pdf.preview.png', 'binary-thumb');
+      vault.seed('attachments/a.png', 'binary-data');
+
+      await manager.deleteAllTwins();
+
+      expect(vault.has('attachments/twins/a.png.md')).toBe(false);
+      expect(vault.has('attachments/twins/previews/b.pdf.preview.png')).toBe(false);
+      expect(vault.has('attachments/twins/previews/sub/c.pdf.preview.png')).toBe(false);
+      // Original attachment untouched
+      expect(vault.has('attachments/a.png')).toBe(true);
     });
   });
 

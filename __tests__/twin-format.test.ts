@@ -264,6 +264,118 @@ project: my-project
   });
 });
 
+describe('parseFrontmatter — YAML lists', () => {
+  it('parses single-line YAML list values', () => {
+    const content = `---
+tags: [alpha, beta]
+attachment-type: image
+---
+
+body`;
+    const result = parseFrontmatter(content);
+    expect(result.data['tags']).toBe('[alpha, beta]');
+  });
+
+  it('parses multi-line YAML list values', () => {
+    const content = `---
+tags:
+  - alpha
+  - beta
+attachment-type: image
+---
+
+body`;
+    const result = parseFrontmatter(content);
+    expect(result.data['tags']).toEqual(['alpha', 'beta']);
+  });
+
+  it('parses mixed scalar and list fields', () => {
+    const content = `---
+attachment-type: image
+tags:
+  - one
+  - two
+custom: hello
+---`;
+    const result = parseFrontmatter(content);
+    expect(result.data['attachment-type']).toBe('image');
+    expect(result.data['tags']).toEqual(['one', 'two']);
+    expect(result.data['custom']).toBe('hello');
+  });
+
+  it('handles empty list value (key with no items)', () => {
+    const content = `---
+tags:
+attachment-type: image
+---`;
+    const result = parseFrontmatter(content);
+    expect(result.data['tags']).toBe('');
+    expect(result.data['attachment-type']).toBe('image');
+  });
+});
+
+describe('mergeFrontmatter — YAML lists', () => {
+  it('preserves user-added list values through merge', () => {
+    const existing = `---
+attachment: "[[attachments/photo.png]]"
+attachment-type: image
+categories: attachments
+attachment-size: 1024
+created: 2024-04-04
+modified: 2024-04-04
+attachment-preview: ""
+tags:
+  - mi-tag-custom
+---
+
+![[attachments/photo.png]]`;
+
+    const generated = `---
+attachment: "[[attachments/photo.png]]"
+attachment-type: image
+categories: attachments
+attachment-size: 2048
+created: 2024-04-04
+modified: 2024-04-05
+attachment-preview: ""
+---
+
+![[attachments/photo.png]]`;
+
+    const merged = mergeFrontmatter(existing, generated);
+    expect(merged).toContain('tags:');
+    expect(merged).toContain('  - mi-tag-custom');
+  });
+
+  it('preserves user-added inline list values through merge', () => {
+    const existing = `---
+attachment: "[[attachments/photo.png]]"
+attachment-type: image
+categories: attachments
+attachment-size: 1024
+created: 2024-04-04
+modified: 2024-04-04
+attachment-preview: ""
+tags: [alpha, beta]
+---`;
+
+    const generated = `---
+attachment: "[[attachments/photo.png]]"
+attachment-type: image
+categories: attachments
+attachment-size: 2048
+created: 2024-04-04
+modified: 2024-04-05
+attachment-preview: ""
+---
+
+![[attachments/photo.png]]`;
+
+    const merged = mergeFrontmatter(existing, generated);
+    expect(merged).toContain('tags: [alpha, beta]');
+  });
+});
+
 describe('parseCustomFields', () => {
   it('parses key: value lines into a record', () => {
     const result = parseCustomFields('project: my-project\nstatus: unreviewed');

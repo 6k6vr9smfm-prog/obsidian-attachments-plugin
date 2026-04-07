@@ -1,6 +1,6 @@
 import { TFile } from 'obsidian';
 import { AttachmentBasesSettings } from './settings';
-import { getTwinPath, getAttachmentPathFromTwin, isTwinFile, shouldProcess, classifyType } from './file-utils';
+import { getTwinPath, getAttachmentPathFromTwin, isTwinFile, isPreviewThumbnail, shouldProcess, classifyType } from './file-utils';
 import { buildTwinContent, mergeFrontmatter, parseFrontmatter, extractTemplateFrontmatter, TwinTemplate } from './twin-format';
 import { getPreviewValue, getPreviewThumbnailPath, PreviewType, generatePreviewThumbnail, PreviewGeneratorAdapter } from './preview-generator';
 
@@ -87,12 +87,30 @@ export class TwinManager {
     const twin = this.vault.getAbstractFileByPath(oldTwinPath);
     if (!twin || !(twin instanceof TFile)) return;
 
+    // Compute preview paths once if previews are enabled
+    const oldPreviewPath = this.settings.generatePreviews ? getPreviewThumbnailPath(oldPath, this.settings) : '';
+    const newPreviewPath = this.settings.generatePreviews ? getPreviewThumbnailPath(newPath, this.settings) : '';
+
+    // Rename preview file if it exists
+    if (oldPreviewPath) {
+      const previewFile = this.vault.getAbstractFileByPath(oldPreviewPath);
+      if (previewFile && previewFile instanceof TFile) {
+        await this.ensureParentFolder(newPreviewPath);
+        await this.vault.rename(previewFile, newPreviewPath);
+      }
+    }
+
     await this.ensureParentFolder(newTwinPath);
 
-    // Read existing content and update references
+    // Read existing content and update all references (attachment path + preview path)
     const existingContent = await this.vault.read(twin);
-    const updatedContent = existingContent
+    let updatedContent = existingContent
       .replace(new RegExp(escapeRegExp(oldPath), 'g'), newPath);
+
+    if (oldPreviewPath) {
+      updatedContent = updatedContent
+        .replace(new RegExp(escapeRegExp(oldPreviewPath), 'g'), newPreviewPath);
+    }
 
     await this.vault.rename(twin, newTwinPath);
 
@@ -131,6 +149,13 @@ export class TwinManager {
       if (isTwinFile(file.path, this.settings)) {
         await this.vault.delete(file);
         count++;
+      }
+    }
+
+    // Also clean up orphan preview thumbnails
+    for (const file of this.vault.getFiles()) {
+      if (isPreviewThumbnail(file.path)) {
+        await this.vault.delete(file);
       }
     }
 

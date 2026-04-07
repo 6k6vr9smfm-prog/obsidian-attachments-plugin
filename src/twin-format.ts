@@ -133,11 +133,30 @@ export function parseFrontmatter(content: string): { data: Record<string, any>; 
   const yamlBlock = content.slice(4, endIndex);
   const body = content.slice(endIndex + 4); // skip \n---
 
+  let currentKey = '';
+
   for (const line of yamlBlock.split('\n')) {
+    // Continuation line (indented) — belongs to current key
+    if (/^\s/.test(line) && currentKey) {
+      const trimmed = line.trim();
+      // YAML list item: "  - value"
+      if (trimmed.startsWith('- ')) {
+        const itemValue = trimmed.slice(2).trim();
+        if (!Array.isArray(data[currentKey])) {
+          data[currentKey] = [];
+        }
+        data[currentKey].push(itemValue);
+      }
+      continue;
+    }
+
     const colonIndex = line.indexOf(':');
     if (colonIndex === -1) continue;
     const key = line.slice(0, colonIndex).trim();
     let value: any = line.slice(colonIndex + 1).trim();
+
+    if (!key) continue;
+    currentKey = key;
 
     // Parse quoted strings
     if (value.startsWith('"') && value.endsWith('"')) {
@@ -148,9 +167,7 @@ export function parseFrontmatter(content: string): { data: Record<string, any>; 
       value = parseInt(value, 10);
     }
 
-    if (key) {
-      data[key] = value;
-    }
+    data[key] = value;
   }
 
   return { data, body };
@@ -182,7 +199,14 @@ export function mergeFrontmatter(existingContent: string, generatedContent: stri
   // Build frontmatter string
   const lines = ['---'];
   for (const [key, value] of Object.entries(merged)) {
-    if (typeof value === 'string' && (value.includes('[[') || value.includes(' '))) {
+    if (Array.isArray(value)) {
+      lines.push(`${key}:`);
+      for (const item of value) {
+        lines.push(`  - ${item}`);
+      }
+    } else if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']') && !value.includes('[[')) {
+      lines.push(`${key}: ${value}`);
+    } else if (typeof value === 'string' && (value.includes('[[') || value.includes(' '))) {
       lines.push(`${key}: "${value}"`);
     } else {
       lines.push(`${key}: ${value}`);
