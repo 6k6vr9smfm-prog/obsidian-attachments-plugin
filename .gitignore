@@ -1,0 +1,7 @@
+node_modules/
+main.js
+data.json
+*.js.map
+.DS_Store
+test-vault/
+testing set/

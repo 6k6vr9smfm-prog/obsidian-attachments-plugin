@@ -1,0 +1,57 @@
+export default {
+  // Commands
+  'cmd.sync-all': 'Sync all attachment twins',
+  'cmd.generate-previews': 'Generate missing previews',
+  'cmd.move-twins': 'Move twins to configured folder',
+  'cmd.recreate-base': 'Create or update Attachments base file',
+  'cmd.delete-all-twins': 'Delete all twin files',
+  'cmd.resync-twin': 'Re-sync twin file',
+
+  // Notices
+  'notice.synced-startup': (created: number, skipped: number) =>
+    `Attachment Bases: synced ${created} twin(s), ${skipped} skipped.`,
+  'notice.synced': (created: number, skipped: number) =>
+    `Attachment Bases: created ${created} twin(s), ${skipped} already synced.`,
+  'notice.missing-previews': (count: number) =>
+    `Attachment Bases: ${count} attachment(s) missing previews. Run "Generate missing previews" to fix.`,
+  'notice.generated-previews': (count: number) =>
+    `Attachment Bases: generated ${count} preview(s).`,
+  'notice.moved-twins': (count: number, folder: string) =>
+    `Attachment Bases: moved ${count} twin file(s) to ${folder}.`,
+  'notice.base-created': 'Attachment Bases: base file created/updated.',
+  'notice.deleted-twins': (count: number) =>
+    `Attachment Bases: deleted ${count} twin file(s).`,
+  'notice.resynced': (name: string) =>
+    `Twin re-synced for ${name}`,
+
+  // Settings
+  'settings.sync-on-startup': 'Sync on startup',
+  'settings.sync-on-startup.desc': 'Automatically create twin files for new attachments when Obsidian starts.',
+  'settings.twin-folder': 'Twin folder',
+  'settings.twin-folder.desc': 'Folder where twin metadata files are stored. Leave empty to place twins next to attachments.',
+  'settings.twin-folder.placeholder': 'e.g. attachments/twins',
+  'settings.watched-folders': 'Watched folders',
+  'settings.watched-folders.desc': 'Only watch for attachments in these folders (one per line). Leave empty to watch the entire vault.',
+  'settings.exclude-patterns': 'Exclude patterns',
+  'settings.exclude-patterns.desc': 'Path prefixes to exclude from twin creation (one per line).',
+  'settings.generate-previews': 'Generate previews',
+  'settings.generate-previews.desc': 'Generate preview thumbnails for attachments (images, PDFs, videos, audio).',
+  'settings.preview-folder': 'Preview folder',
+  'settings.preview-folder.desc': 'Folder where generated preview thumbnails are stored. Leave empty to place previews next to attachments.',
+  'settings.preview-folder.placeholder': 'e.g. attachments/twins/previews',
+  'settings.custom-fields': 'Custom frontmatter fields',
+  'settings.custom-fields.desc': 'Extra fields added to every twin file (one "key: value" per line). Ignored when a template path is set.',
+  'settings.templater-enabled': 'Templater integration',
+  'settings.templater-enabled.desc': 'Run Templater on twin files after creation (requires Templater plugin).',
+  'settings.templater-path': 'Templater template path',
+  'settings.templater-path.desc': 'Path to a template file whose frontmatter and body are merged into new twins (replaces custom fields). Leave empty to use custom fields instead.',
+
+  // Base display names
+  'base.preview': 'Preview',
+  'base.attachment': 'Attachment',
+  'base.type': 'Type',
+  'base.categories': 'Categories',
+  'base.size': 'Size',
+  'base.created': 'Created',
+  'base.modified': 'Modified',
+} as const;
