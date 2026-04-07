@@ -66,6 +66,9 @@ export async function generatePreviewThumbnail(
   adapter: PreviewGeneratorAdapter,
   settings: AttachmentBasesSettings,
 ): Promise<boolean> {
+  // Skip on platforms without DOM (e.g. Obsidian Mobile)
+  if (typeof document === 'undefined') return false;
+
   const thumbPath = getPreviewThumbnailPath(attachmentPath, settings);
 
   // Skip if thumbnail already exists

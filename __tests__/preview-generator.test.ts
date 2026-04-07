@@ -3,6 +3,7 @@ import {
   getPreviewValue,
   getPreviewThumbnailPath,
   PreviewType,
+  generatePreviewThumbnail,
 } from '../src/preview-generator';
 
 describe('getPreviewValue', () => {
@@ -63,6 +64,33 @@ describe('getPreviewThumbnailPath', () => {
     });
     expect(getPreviewThumbnailPath('attachments/doc.pdf', settings))
       .toBe('attachments/doc.pdf.preview.png');
+  });
+});
+
+describe('generatePreviewThumbnail — mobile guard', () => {
+  it('returns false when document is undefined (mobile)', () => {
+    const origDocument = global.document;
+    // @ts-ignore — simulate mobile environment
+    delete global.document;
+    try {
+      const settings = makeSettings({
+        previewFolder: 'attachments/twins/previews',
+        watchedFolders: ['attachments/'],
+      });
+      const adapter = {
+        readBinary: jest.fn(),
+        createBinary: jest.fn(),
+        getAbstractFileByPath: jest.fn().mockReturnValue(null),
+        createFolder: jest.fn(),
+      };
+      return generatePreviewThumbnail('attachments/doc.pdf', 'pdf', adapter, settings)
+        .then((result) => {
+          expect(result).toBe(false);
+          expect(adapter.readBinary).not.toHaveBeenCalled();
+        });
+    } finally {
+      global.document = origDocument;
+    }
   });
 });
 
