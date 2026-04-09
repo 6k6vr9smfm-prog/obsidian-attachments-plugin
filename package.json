@@ -1,6 +1,6 @@
 {
   "name": "obsidian-attachment-bases",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Manage non-markdown attachments through Obsidian Bases",
   "main": "main.js",
   "scripts": {
