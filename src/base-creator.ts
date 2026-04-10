@@ -1,3 +1,4 @@
+import { TFile } from 'obsidian';
 import { AttachmentsAutopilotSettings } from './settings';
 import { VaultAdapter } from './twin-manager';
 import { t } from './i18n';
@@ -51,8 +52,8 @@ export async function recreateAttachmentBase(
   const existing = vault.getAbstractFileByPath(BASE_FILENAME);
   const content = getBaseContent(settings);
 
-  if (existing) {
-    await vault.modify(existing as any, content);
+  if (existing instanceof TFile) {
+    await vault.modify(existing, content);
   } else {
     await vault.create(BASE_FILENAME, content);
   }

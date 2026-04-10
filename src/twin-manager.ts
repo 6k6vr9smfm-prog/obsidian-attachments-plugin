@@ -10,6 +10,7 @@ export interface VaultAdapter {
   rename(file: TAbstractFile, newPath: string): Promise<void>;
   read(file: TFile): Promise<string>;
   modify(file: TFile, content: string): Promise<void>;
+  process(file: TFile, fn: (data: string) => string): Promise<string>;
   getAbstractFileByPath(path: string): TAbstractFile | null;
   getFiles(): TFile[];
   createFolder(path: string): Promise<TFolder>;
@@ -55,10 +56,11 @@ export class TwinManager {
     await this.ensureParentFolder(twinPath);
 
     const existingTwin = this.vault.getAbstractFileByPath(twinPath);
-    if (existingTwin && existingTwin instanceof TFile) {
-      const existingContent = await this.vault.read(existingTwin);
-      const merged = mergeFrontmatter(existingContent, content);
-      await this.vault.modify(existingTwin, merged);
+    if (existingTwin instanceof TFile) {
+      // Atomic read-modify-write to avoid clobbering concurrent external edits
+      await this.vault.process(existingTwin, (existingContent) =>
+        mergeFrontmatter(existingContent, content),
+      );
     } else {
       await this.vault.create(twinPath, content);
     }
@@ -106,23 +108,18 @@ export class TwinManager {
 
     await this.ensureParentFolder(newTwinPath);
 
-    // Read existing content and update all references (attachment path + preview path)
-    const existingContent = await this.vault.read(twin);
-    let updatedContent = existingContent
-      .replace(new RegExp(escapeRegExp(oldPath), 'g'), newPath);
-
-    // Always attempt preview path replacement in content, even if the file wasn't found
-    if (oldPreviewPath && newPreviewPath) {
-      updatedContent = updatedContent
-        .replace(new RegExp(escapeRegExp(oldPreviewPath), 'g'), newPreviewPath);
-    }
-
     await this.vault.rename(twin, newTwinPath);
 
-    // Re-read the renamed file and update its content
+    // Atomically update all in-content references (attachment path + preview path)
     const renamedTwin = this.vault.getAbstractFileByPath(newTwinPath);
-    if (renamedTwin && renamedTwin instanceof TFile) {
-      await this.vault.modify(renamedTwin, updatedContent);
+    if (renamedTwin instanceof TFile) {
+      await this.vault.process(renamedTwin, (data) => {
+        let updated = data.replace(new RegExp(escapeRegExp(oldPath), 'g'), newPath);
+        if (oldPreviewPath && newPreviewPath) {
+          updated = updated.replace(new RegExp(escapeRegExp(oldPreviewPath), 'g'), newPreviewPath);
+        }
+        return updated;
+      });
     }
   }
 
@@ -236,17 +233,21 @@ export class TwinManager {
         await generatePreviewThumbnail(attachmentPath, type, this.previewAdapter, this.settings);
       }
 
-      // Update the twin's frontmatter (replace whatever is there, or insert if absent)
+      // Atomically update the twin's frontmatter (replace existing line, or insert if absent).
+      // Skip files that lack a frontmatter block entirely.
       const newLine = `attachment-preview: "${expectedPreview}"`;
-      let updatedContent: string;
-      if (/^attachment-preview:.*/m.test(content)) {
-        updatedContent = content.replace(/^attachment-preview:.*/m, () => newLine);
-      } else {
-        updatedContent = insertFrontmatterLine(content, newLine);
-        if (updatedContent === content) continue; // no frontmatter block — skip
-      }
-      await this.vault.modify(file, updatedContent);
-      count++;
+      let mutated = false;
+      await this.vault.process(file, (data) => {
+        if (/^attachment-preview:.*/m.test(data)) {
+          mutated = true;
+          return data.replace(/^attachment-preview:.*/m, () => newLine);
+        }
+        const inserted = insertFrontmatterLine(data, newLine);
+        if (inserted === data) return data; // no frontmatter block — leave as-is
+        mutated = true;
+        return inserted;
+      });
+      if (mutated) count++;
     }
     return count;
   }

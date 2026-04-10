@@ -80,3 +80,17 @@ export async function loadPdfJs(): Promise<any> {
 export function normalizePath(path: string): string {
   return path.replace(/\\/g, '/').replace(/\/+/g, '/');
 }
+
+export class Menu {
+  addItem(_cb: (item: any) => any): this { return this; }
+}
+
+export class MenuItem {
+  setTitle(_title: string): this { return this; }
+  setIcon(_icon: string): this { return this; }
+  onClick(_cb: (evt: any) => any): this { return this; }
+}
+
+export const moment: { locale(): string } = {
+  locale: () => 'en',
+};

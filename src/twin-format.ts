@@ -118,8 +118,10 @@ export function extractTemplateFrontmatter(templateContent: string): TwinTemplat
   return { frontmatterLines: out, body };
 }
 
-export function parseFrontmatter(content: string): { data: Record<string, any>; body: string } {
-  const data: Record<string, any> = {};
+type FrontmatterValue = string | number | string[];
+
+export function parseFrontmatter(content: string): { data: Record<string, FrontmatterValue>; body: string } {
+  const data: Record<string, FrontmatterValue> = {};
 
   if (!content.startsWith('---')) {
     return { data, body: content };
@@ -142,10 +144,10 @@ export function parseFrontmatter(content: string): { data: Record<string, any>; 
       // YAML list item: "  - value"
       if (trimmed.startsWith('- ')) {
         const itemValue = trimmed.slice(2).trim();
-        if (!Array.isArray(data[currentKey])) {
-          data[currentKey] = [];
-        }
-        data[currentKey].push(itemValue);
+        const existing = data[currentKey];
+        const list = Array.isArray(existing) ? existing : [];
+        list.push(itemValue);
+        data[currentKey] = list;
       }
       continue;
     }
@@ -153,7 +155,7 @@ export function parseFrontmatter(content: string): { data: Record<string, any>; 
     const colonIndex = line.indexOf(':');
     if (colonIndex === -1) continue;
     const key = line.slice(0, colonIndex).trim();
-    let value: any = line.slice(colonIndex + 1).trim();
+    let value: string | number = line.slice(colonIndex + 1).trim();
 
     if (!key) continue;
     currentKey = key;

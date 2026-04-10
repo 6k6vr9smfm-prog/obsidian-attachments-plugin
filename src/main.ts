@@ -46,20 +46,26 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       }
 
       if (this.settings.syncOnStartup) {
-        this.twinManager.syncAll().then(({ created, skipped }) => {
+        try {
+          const { created, skipped } = await this.twinManager.syncAll();
           if (created > 0) {
             new Notice(t('notice.synced-startup')(created, skipped));
           }
-        });
+        } catch (e) {
+          console.error('Attachments Autopilot: startup sync failed', e);
+        }
       }
 
       // Generate any missing previews on startup
       if (this.settings.generatePreviews) {
-        this.twinManager.generateMissingPreviews().then((count) => {
+        try {
+          const count = await this.twinManager.generateMissingPreviews();
           if (count > 0) {
             new Notice(t('notice.generated-previews')(count));
           }
-        });
+        } catch (e) {
+          console.error('Attachments Autopilot: startup preview generation failed', e);
+        }
       }
     });
 

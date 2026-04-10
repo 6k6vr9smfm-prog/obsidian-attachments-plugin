@@ -57,6 +57,14 @@ export class FakeVault {
     entry.content = content;
   }
 
+  async process(file: TFile, fn: (data: string) => string): Promise<string> {
+    const entry = this.files.get(file.path);
+    if (!entry) throw new Error(`File not found: ${file.path}`);
+    const updated = fn(entry.content);
+    entry.content = updated;
+    return updated;
+  }
+
   getAbstractFileByPath(path: string): TFile | TFolder | null {
     const entry = this.files.get(path);
     if (entry) return entry.file;

@@ -5,7 +5,7 @@ import fr from './fr';
 import it from './it';
 
 type TranslationKey = keyof typeof en;
-type TranslationValue = string | ((...args: any[]) => string);
+type TranslationValue = string | ((...args: never[]) => string);
 type Translations = Record<TranslationKey, TranslationValue>;
 
 const locales: Record<string, Translations> = {
@@ -16,14 +16,12 @@ const locales: Record<string, Translations> = {
   it: it as Translations,
 };
 
+import { moment } from 'obsidian';
+
 function getLocale(): string {
-  try {
-    // Obsidian exposes locale via moment.locale()
-    const lang = (window as any).moment?.locale?.() as string | undefined;
-    if (lang) return lang.split('-')[0];
-  } catch {
-    // Outside Obsidian (tests, etc.)
-  }
+  // Obsidian re-exports moment and uses it to track the current locale.
+  const lang = moment?.locale?.();
+  if (lang) return lang.split('-')[0];
   return 'en';
 }
 
