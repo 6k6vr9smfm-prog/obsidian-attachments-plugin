@@ -1,12 +1,12 @@
-import { TFile } from 'obsidian';
+import { TAbstractFile, TFile } from 'obsidian';
 import { EXTENSION_TYPE_MAP, PREVIEW_SUFFIX } from './constants';
-import { AttachmentBasesSettings } from './settings';
+import { AttachmentsAutopilotSettings } from './settings';
 
 export function classifyType(extension: string): string {
   return EXTENSION_TYPE_MAP[extension.toLowerCase()] ?? 'other';
 }
 
-export function getTwinPath(attachmentPath: string, settings: AttachmentBasesSettings): string {
+export function getTwinPath(attachmentPath: string, settings: AttachmentsAutopilotSettings): string {
   if (!settings.twinFolder) {
     return attachmentPath + '.md';
   }
@@ -17,7 +17,7 @@ export function getTwinPath(attachmentPath: string, settings: AttachmentBasesSet
 
 export function getAttachmentPathFromTwin(
   twinPath: string,
-  settings: AttachmentBasesSettings,
+  settings: AttachmentsAutopilotSettings,
 ): string | null {
   if (settings.twinFolder) {
     const prefix = settings.twinFolder + '/';
@@ -34,7 +34,7 @@ export function getAttachmentPathFromTwin(
   return twinPath.slice(0, -3);
 }
 
-export function isTwinFile(path: string, settings: AttachmentBasesSettings): boolean {
+export function isTwinFile(path: string, settings: AttachmentsAutopilotSettings): boolean {
   if (settings.twinFolder) {
     if (!path.startsWith(settings.twinFolder + '/')) return false;
     if (!path.endsWith('.md')) return false;
@@ -49,15 +49,15 @@ export function isTwinFile(path: string, settings: AttachmentBasesSettings): boo
   return ext in EXTENSION_TYPE_MAP;
 }
 
-export function isAttachment(file: any): file is TFile {
+export function isAttachment(file: TAbstractFile): file is TFile {
   return file instanceof TFile && file.extension !== 'md';
 }
 
-export function isExcluded(path: string, settings: AttachmentBasesSettings): boolean {
+export function isExcluded(path: string, settings: AttachmentsAutopilotSettings): boolean {
   return settings.excludePatterns.some((pattern) => path.startsWith(pattern));
 }
 
-export function isInWatchedFolder(path: string, settings: AttachmentBasesSettings): boolean {
+export function isInWatchedFolder(path: string, settings: AttachmentsAutopilotSettings): boolean {
   if (settings.watchedFolders.length === 0) return true;
   return settings.watchedFolders.some((folder) => path.startsWith(folder));
 }
@@ -66,7 +66,7 @@ export function isPreviewThumbnail(path: string): boolean {
   return path.endsWith(PREVIEW_SUFFIX);
 }
 
-export function shouldProcess(file: any, settings: AttachmentBasesSettings): boolean {
+export function shouldProcess(file: TAbstractFile, settings: AttachmentsAutopilotSettings): boolean {
   if (!isAttachment(file)) return false;
   if (isTwinFile(file.path, settings)) return false;
   if (isPreviewThumbnail(file.path)) return false;
@@ -79,7 +79,7 @@ export function shouldProcess(file: any, settings: AttachmentBasesSettings): boo
  * Path-based variant of shouldProcess. Used when checking a previous path
  * (e.g. the `oldPath` of a rename) where we don't have a TFile to inspect.
  */
-export function shouldProcessPath(path: string, settings: AttachmentBasesSettings): boolean {
+export function shouldProcessPath(path: string, settings: AttachmentsAutopilotSettings): boolean {
   const lastDot = path.lastIndexOf('.');
   const ext = lastDot === -1 ? '' : path.slice(lastDot + 1).toLowerCase();
   if (ext === 'md' || ext === '') return false;
@@ -101,7 +101,7 @@ function stripWatchedFolderPrefix(path: string, watchedFolders: string[]): strin
 
 function findWatchedFolder(
   _twinPath: string,
-  settings: AttachmentBasesSettings,
+  settings: AttachmentsAutopilotSettings,
   _attachmentRelative: string,
 ): string {
   // Return the first watched folder as the default prefix for reverse mapping

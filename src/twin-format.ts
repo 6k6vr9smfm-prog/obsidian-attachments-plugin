@@ -1,6 +1,6 @@
 import { classifyType } from './file-utils';
 import { MANAGED_FRONTMATTER_KEYS } from './constants';
-import { AttachmentBasesSettings } from './settings';
+import { AttachmentsAutopilotSettings } from './settings';
 
 export interface FileStat {
   ctime: number;
@@ -37,7 +37,7 @@ export interface TwinTemplate {
 export function buildTwinContent(
   attachmentPath: string,
   stat: FileStat,
-  settings: AttachmentBasesSettings,
+  settings: AttachmentsAutopilotSettings,
   previewValue?: string,
   template?: TwinTemplate | null,
 ): string {

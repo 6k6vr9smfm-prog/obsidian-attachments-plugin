@@ -9,18 +9,18 @@ export default {
 
   // Notices
   'notice.synced-startup': (created: number, skipped: number) =>
-    `Attachment Bases: ${created} gemelo(s) sincronizado(s), ${skipped} omitido(s).`,
+    `${created} gemelo(s) sincronizado(s), ${skipped} omitido(s).`,
   'notice.synced': (created: number, skipped: number) =>
-    `Attachment Bases: ${created} gemelo(s) creado(s), ${skipped} ya sincronizado(s).`,
+    `${created} gemelo(s) creado(s), ${skipped} ya sincronizado(s).`,
   'notice.missing-previews': (count: number) =>
-    `Attachment Bases: ${count} adjunto(s) sin vista previa. Ejecuta "Generar vistas previas faltantes" para corregir.`,
+    `${count} adjunto(s) sin vista previa. Ejecuta "Generar vistas previas faltantes" para corregir.`,
   'notice.generated-previews': (count: number) =>
-    `Attachment Bases: ${count} vista(s) previa(s) generada(s).`,
+    `${count} vista(s) previa(s) generada(s).`,
   'notice.moved-twins': (count: number, folder: string) =>
-    `Attachment Bases: ${count} archivo(s) gemelo(s) movido(s) a ${folder}.`,
-  'notice.base-created': 'Attachment Bases: archivo base creado/actualizado.',
+    `${count} archivo(s) gemelo(s) movido(s) a ${folder}.`,
+  'notice.base-created': 'Archivo base creado/actualizado.',
   'notice.deleted-twins': (count: number) =>
-    `Attachment Bases: ${count} archivo(s) gemelo(s) eliminado(s).`,
+    `${count} archivo(s) gemelo(s) eliminado(s).`,
   'notice.resynced': (name: string) =>
     `Gemelo re-sincronizado para ${name}`,
 

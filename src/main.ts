@@ -1,13 +1,13 @@
-import { Plugin, TFile, TAbstractFile, Notice } from 'obsidian';
-import { AttachmentBasesSettings, AttachmentBasesSettingTab, DEFAULT_SETTINGS } from './settings';
+import { Plugin, TFile, TAbstractFile, Notice, Menu, MenuItem } from 'obsidian';
+import { AttachmentsAutopilotSettings, AttachmentsAutopilotSettingTab, DEFAULT_SETTINGS } from './settings';
 import { TwinManager } from './twin-manager';
 import { shouldProcess, shouldProcessPath } from './file-utils';
 import { createAttachmentBase, recreateAttachmentBase } from './base-creator';
 import { isTemplaterAvailable, runTemplaterOnFile } from './templater-integration';
 import { t } from './i18n';
 
-export default class AttachmentBasesPlugin extends Plugin {
-  settings!: AttachmentBasesSettings;
+export default class AttachmentsAutopilotPlugin extends Plugin {
+  settings!: AttachmentsAutopilotSettings;
   twinManager!: TwinManager;
   private processing = new Set<string>();
 
@@ -108,12 +108,12 @@ export default class AttachmentBasesPlugin extends Plugin {
       },
     });
 
-    this.addSettingTab(new AttachmentBasesSettingTab(this.app, this));
+    this.addSettingTab(new AttachmentsAutopilotSettingTab(this.app, this));
 
     this.registerEvent(
-      this.app.workspace.on('file-menu', (menu: any, file: TAbstractFile) => {
+      this.app.workspace.on('file-menu', (menu: Menu, file: TAbstractFile) => {
         if (file instanceof TFile && shouldProcess(file, this.settings)) {
-          menu.addItem((item: any) => {
+          menu.addItem((item: MenuItem) => {
             item
               .setTitle(t('cmd.resync-twin'))
               .setIcon('refresh-cw')

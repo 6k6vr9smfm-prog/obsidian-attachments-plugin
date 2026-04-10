@@ -9,18 +9,18 @@ export default {
 
   // Notices
   'notice.synced-startup': (created: number, skipped: number) =>
-    `Attachment Bases: ${created} gemello/i sincronizzato/i, ${skipped} saltato/i.`,
+    `${created} gemello/i sincronizzato/i, ${skipped} saltato/i.`,
   'notice.synced': (created: number, skipped: number) =>
-    `Attachment Bases: ${created} gemello/i creato/i, ${skipped} già sincronizzato/i.`,
+    `${created} gemello/i creato/i, ${skipped} già sincronizzato/i.`,
   'notice.missing-previews': (count: number) =>
-    `Attachment Bases: ${count} allegato/i senza anteprima. Esegui "Genera anteprime mancanti" per correggere.`,
+    `${count} allegato/i senza anteprima. Esegui "Genera anteprime mancanti" per correggere.`,
   'notice.generated-previews': (count: number) =>
-    `Attachment Bases: ${count} anteprima/e generata/e.`,
+    `${count} anteprima/e generata/e.`,
   'notice.moved-twins': (count: number, folder: string) =>
-    `Attachment Bases: ${count} file gemello/i spostato/i in ${folder}.`,
-  'notice.base-created': 'Attachment Bases: file base creato/aggiornato.',
+    `${count} file gemello/i spostato/i in ${folder}.`,
+  'notice.base-created': 'File base creato/aggiornato.',
   'notice.deleted-twins': (count: number) =>
-    `Attachment Bases: ${count} file gemello/i eliminato/i.`,
+    `${count} file gemello/i eliminato/i.`,
   'notice.resynced': (name: string) =>
     `Gemello ri-sincronizzato per ${name}`,
 

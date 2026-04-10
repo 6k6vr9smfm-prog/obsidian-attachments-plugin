@@ -9,18 +9,18 @@ export default {
 
   // Notices
   'notice.synced-startup': (created: number, skipped: number) =>
-    `Attachment Bases: synced ${created} twin(s), ${skipped} skipped.`,
+    `Synced ${created} twin(s), ${skipped} skipped.`,
   'notice.synced': (created: number, skipped: number) =>
-    `Attachment Bases: created ${created} twin(s), ${skipped} already synced.`,
+    `Created ${created} twin(s), ${skipped} already synced.`,
   'notice.missing-previews': (count: number) =>
-    `Attachment Bases: ${count} attachment(s) missing previews. Run "Generate missing previews" to fix.`,
+    `${count} attachment(s) missing previews. Run "Generate missing previews" to fix.`,
   'notice.generated-previews': (count: number) =>
-    `Attachment Bases: generated ${count} preview(s).`,
+    `Generated ${count} preview(s).`,
   'notice.moved-twins': (count: number, folder: string) =>
-    `Attachment Bases: moved ${count} twin file(s) to ${folder}.`,
-  'notice.base-created': 'Attachment Bases: base file created/updated.',
+    `Moved ${count} twin file(s) to ${folder}.`,
+  'notice.base-created': 'Base file created/updated.',
   'notice.deleted-twins': (count: number) =>
-    `Attachment Bases: deleted ${count} twin file(s).`,
+    `Deleted ${count} twin file(s).`,
   'notice.resynced': (name: string) =>
     `Twin re-synced for ${name}`,
 

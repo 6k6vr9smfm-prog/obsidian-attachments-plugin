@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-attachment-bases",
-  "version": "0.6.2",
-  "description": "Manage non-markdown attachments through Obsidian Bases",
+  "name": "obsidian-attachments-autopilot",
+  "version": "0.6.3",
+  "description": "Automatically create queryable twin markdown files for non-markdown attachments, enabling management via Obsidian Bases",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",

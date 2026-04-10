@@ -1,11 +1,11 @@
 import { TFile } from 'obsidian';
 import { FakeVault, makeTFile, makeSettings } from './__mocks__/helpers';
 import { TwinManager } from '../src/twin-manager';
-import { AttachmentBasesSettings } from '../src/settings';
+import { AttachmentsAutopilotSettings } from '../src/settings';
 
 describe('TwinManager', () => {
   let vault: FakeVault;
-  let settings: AttachmentBasesSettings;
+  let settings: AttachmentsAutopilotSettings;
   let manager: TwinManager;
 
   beforeEach(() => {

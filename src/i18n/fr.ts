@@ -9,18 +9,18 @@ export default {
 
   // Notices
   'notice.synced-startup': (created: number, skipped: number) =>
-    `Attachment Bases : ${created} jumeau(x) synchronisé(s), ${skipped} ignoré(s).`,
+    `${created} jumeau(x) synchronisé(s), ${skipped} ignoré(s).`,
   'notice.synced': (created: number, skipped: number) =>
-    `Attachment Bases : ${created} jumeau(x) créé(s), ${skipped} déjà synchronisé(s).`,
+    `${created} jumeau(x) créé(s), ${skipped} déjà synchronisé(s).`,
   'notice.missing-previews': (count: number) =>
-    `Attachment Bases : ${count} pièce(s) jointe(s) sans aperçu. Exécutez « Générer les aperçus manquants » pour corriger.`,
+    `${count} pièce(s) jointe(s) sans aperçu. Exécutez « Générer les aperçus manquants » pour corriger.`,
   'notice.generated-previews': (count: number) =>
-    `Attachment Bases : ${count} aperçu(s) généré(s).`,
+    `${count} aperçu(s) généré(s).`,
   'notice.moved-twins': (count: number, folder: string) =>
-    `Attachment Bases : ${count} fichier(s) jumeau(x) déplacé(s) vers ${folder}.`,
-  'notice.base-created': 'Attachment Bases : fichier base créé/mis à jour.',
+    `${count} fichier(s) jumeau(x) déplacé(s) vers ${folder}.`,
+  'notice.base-created': 'Fichier base créé/mis à jour.',
   'notice.deleted-twins': (count: number) =>
-    `Attachment Bases : ${count} fichier(s) jumeau(x) supprimé(s).`,
+    `${count} fichier(s) jumeau(x) supprimé(s).`,
   'notice.resynced': (name: string) =>
     `Jumeau re-synchronisé pour ${name}`,
 

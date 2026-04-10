@@ -1,5 +1,5 @@
 import { TFile, TFolder } from 'obsidian';
-import { AttachmentBasesSettings, DEFAULT_SETTINGS } from '../../src/settings';
+import { AttachmentsAutopilotSettings, DEFAULT_SETTINGS } from '../../src/settings';
 
 export function makeTFile(
   path: string,
@@ -16,7 +16,7 @@ export function makeTFolder(path: string): TFolder {
   return new TFolder(path);
 }
 
-export function makeSettings(overrides?: Partial<AttachmentBasesSettings>): AttachmentBasesSettings {
+export function makeSettings(overrides?: Partial<AttachmentsAutopilotSettings>): AttachmentsAutopilotSettings {
   return { ...DEFAULT_SETTINGS, ...overrides };
 }
 

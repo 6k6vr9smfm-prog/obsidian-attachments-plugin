@@ -1,9 +1,10 @@
 {
-  "id": "attachment-bases",
-  "name": "Attachment Bases",
-  "version": "0.6.2",
+  "id": "attachments-autopilot",
+  "name": "Attachments Autopilot",
+  "version": "0.6.3",
   "minAppVersion": "1.7.2",
-  "description": "Manage non-markdown attachments through Obsidian Bases by creating twin metadata files.",
+  "description": "Automatically create queryable twin markdown files for your non-markdown attachments, enabling management via Obsidian Bases.",
   "author": "Miguel Baquero",
+  "authorUrl": "https://github.com/6k6vr9smfm-prog",
   "isDesktopOnly": false
 }

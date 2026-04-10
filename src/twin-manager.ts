@@ -1,5 +1,5 @@
-import { TFile } from 'obsidian';
-import { AttachmentBasesSettings } from './settings';
+import { TAbstractFile, TFile, TFolder } from 'obsidian';
+import { AttachmentsAutopilotSettings } from './settings';
 import { getTwinPath, getAttachmentPathFromTwin, isTwinFile, isPreviewThumbnail, shouldProcess, classifyType } from './file-utils';
 import { buildTwinContent, mergeFrontmatter, parseFrontmatter, extractTemplateFrontmatter, TwinTemplate } from './twin-format';
 import { getPreviewValue, getPreviewThumbnailPath, PreviewType, generatePreviewThumbnail, PreviewGeneratorAdapter } from './preview-generator';
@@ -7,12 +7,12 @@ import { getPreviewValue, getPreviewThumbnailPath, PreviewType, generatePreviewT
 export interface VaultAdapter {
   create(path: string, content: string): Promise<TFile>;
   delete(file: TFile): Promise<void>;
-  rename(file: TFile, newPath: string): Promise<void>;
+  rename(file: TAbstractFile, newPath: string): Promise<void>;
   read(file: TFile): Promise<string>;
   modify(file: TFile, content: string): Promise<void>;
-  getAbstractFileByPath(path: string): any;
+  getAbstractFileByPath(path: string): TAbstractFile | null;
   getFiles(): TFile[];
-  createFolder(path: string): Promise<any>;
+  createFolder(path: string): Promise<TFolder>;
 }
 
 export type TemplaterRunner = (twinPath: string) => Promise<void>;
@@ -23,7 +23,7 @@ export class TwinManager {
 
   constructor(
     private vault: VaultAdapter,
-    private settings: AttachmentBasesSettings,
+    private settings: AttachmentsAutopilotSettings,
   ) {}
 
   setPreviewAdapter(adapter: PreviewGeneratorAdapter): void {
@@ -91,27 +91,15 @@ export class TwinManager {
     const oldPreviewPath = this.settings.generatePreviews ? getPreviewThumbnailPath(oldPath, this.settings) : '';
     const newPreviewPath = this.settings.generatePreviews ? getPreviewThumbnailPath(newPath, this.settings) : '';
 
-    console.debug('Attachment Bases renameTwin:', {
-      oldPath, newPath, oldTwinPath, newTwinPath,
-      generatePreviews: this.settings.generatePreviews,
-      oldPreviewPath, newPreviewPath,
-    });
-
     // Rename preview file if it exists
     if (oldPreviewPath) {
       const previewFile = this.vault.getAbstractFileByPath(oldPreviewPath);
-      console.debug('Attachment Bases: preview file lookup result:', {
-        oldPreviewPath,
-        found: !!previewFile,
-        isTFile: previewFile instanceof TFile,
-      });
       if (previewFile && previewFile instanceof TFile) {
         try {
           await this.ensureParentFolder(newPreviewPath);
           await this.vault.rename(previewFile, newPreviewPath);
-          console.debug('Attachment Bases: preview renamed successfully');
         } catch (e) {
-          console.error('Attachment Bases: failed to rename preview', oldPreviewPath, e);
+          console.error('Attachments Autopilot: failed to rename preview', oldPreviewPath, e);
         }
       }
     }
@@ -125,10 +113,8 @@ export class TwinManager {
 
     // Always attempt preview path replacement in content, even if the file wasn't found
     if (oldPreviewPath && newPreviewPath) {
-      const beforeReplace = updatedContent;
       updatedContent = updatedContent
         .replace(new RegExp(escapeRegExp(oldPreviewPath), 'g'), newPreviewPath);
-      console.debug('Attachment Bases: preview path replaced in content:', beforeReplace !== updatedContent);
     }
 
     await this.vault.rename(twin, newTwinPath);

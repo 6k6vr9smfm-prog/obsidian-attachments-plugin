@@ -1,8 +1,8 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import type AttachmentBasesPlugin from './main';
+import type AttachmentsAutopilotPlugin from './main';
 import { t } from './i18n';
 
-export interface AttachmentBasesSettings {
+export interface AttachmentsAutopilotSettings {
   syncOnStartup: boolean;
   twinFolder: string;
   watchedFolders: string[];
@@ -15,7 +15,7 @@ export interface AttachmentBasesSettings {
   templaterTemplatePath: string;
 }
 
-export const DEFAULT_SETTINGS: AttachmentBasesSettings = {
+export const DEFAULT_SETTINGS: AttachmentsAutopilotSettings = {
   syncOnStartup: false,
   twinFolder: 'attachments/twins',
   watchedFolders: ['attachments/'],
@@ -28,10 +28,10 @@ export const DEFAULT_SETTINGS: AttachmentBasesSettings = {
   templaterTemplatePath: '',
 };
 
-export class AttachmentBasesSettingTab extends PluginSettingTab {
-  plugin: AttachmentBasesPlugin;
+export class AttachmentsAutopilotSettingTab extends PluginSettingTab {
+  plugin: AttachmentsAutopilotPlugin;
 
-  constructor(app: App, plugin: AttachmentBasesPlugin) {
+  constructor(app: App, plugin: AttachmentsAutopilotPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }

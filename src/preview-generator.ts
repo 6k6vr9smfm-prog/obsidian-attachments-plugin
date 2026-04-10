@@ -1,6 +1,6 @@
-import { TFile, loadPdfJs } from 'obsidian';
+import { TAbstractFile, TFile, TFolder, loadPdfJs } from 'obsidian';
 import { PREVIEW_SUFFIX } from './constants';
-import { AttachmentBasesSettings } from './settings';
+import { AttachmentsAutopilotSettings } from './settings';
 
 /**
  * Returns the preview frontmatter value for a given attachment.
@@ -11,7 +11,7 @@ import { AttachmentBasesSettings } from './settings';
 export function getPreviewValue(
   attachmentPath: string,
   type: string,
-  settings: AttachmentBasesSettings,
+  settings: AttachmentsAutopilotSettings,
 ): string {
   if (type === 'image') {
     return `[[${attachmentPath}]]`;
@@ -24,7 +24,7 @@ export function getPreviewValue(
 
 export function getPreviewThumbnailPath(
   attachmentPath: string,
-  settings: AttachmentBasesSettings,
+  settings: AttachmentsAutopilotSettings,
 ): string {
   if (!settings.previewFolder) {
     return attachmentPath + PREVIEW_SUFFIX;
@@ -52,8 +52,8 @@ export const PreviewType = {
 export interface PreviewGeneratorAdapter {
   readBinary(file: TFile): Promise<ArrayBuffer>;
   createBinary(path: string, data: ArrayBuffer): Promise<TFile>;
-  getAbstractFileByPath(path: string): any;
-  createFolder(path: string): Promise<any>;
+  getAbstractFileByPath(path: string): TAbstractFile | null;
+  createFolder(path: string): Promise<TFolder>;
 }
 
 /**
@@ -64,7 +64,7 @@ export async function generatePreviewThumbnail(
   attachmentPath: string,
   type: string,
   adapter: PreviewGeneratorAdapter,
-  settings: AttachmentBasesSettings,
+  settings: AttachmentsAutopilotSettings,
 ): Promise<boolean> {
   // Skip on platforms without DOM (e.g. Obsidian Mobile)
   if (typeof document === 'undefined') return false;
@@ -101,7 +101,7 @@ export async function generatePreviewThumbnail(
       return await generateGenericPreview(attachmentPath, thumbPath, adapter);
     }
   } catch (e) {
-    console.error(`Attachment Bases: failed to generate preview for ${attachmentPath}`, e);
+    console.error(`Attachments Autopilot: failed to generate preview for ${attachmentPath}`, e);
   }
 
   return false;
@@ -113,7 +113,7 @@ async function generatePdfPreview(
   adapter: PreviewGeneratorAdapter,
 ): Promise<boolean> {
   const file = adapter.getAbstractFileByPath(attachmentPath);
-  if (!file) return false;
+  if (!(file instanceof TFile)) return false;
 
   const data = await adapter.readBinary(file);
   const pdfjsLib = await loadPdfJs();
@@ -148,7 +148,7 @@ async function generateVideoPreview(
   adapter: PreviewGeneratorAdapter,
 ): Promise<boolean> {
   const file = adapter.getAbstractFileByPath(attachmentPath);
-  if (!file) return false;
+  if (!(file instanceof TFile)) return false;
 
   const data = await adapter.readBinary(file);
   const blob = new Blob([data], { type: 'video/mp4' });

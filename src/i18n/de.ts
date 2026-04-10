@@ -9,18 +9,18 @@ export default {
 
   // Notices
   'notice.synced-startup': (created: number, skipped: number) =>
-    `Attachment Bases: ${created} Zwilling(e) synchronisiert, ${skipped} übersprungen.`,
+    `${created} Zwilling(e) synchronisiert, ${skipped} übersprungen.`,
   'notice.synced': (created: number, skipped: number) =>
-    `Attachment Bases: ${created} Zwilling(e) erstellt, ${skipped} bereits synchronisiert.`,
+    `${created} Zwilling(e) erstellt, ${skipped} bereits synchronisiert.`,
   'notice.missing-previews': (count: number) =>
-    `Attachment Bases: ${count} Anhang/Anhänge ohne Vorschau. Führe "Fehlende Vorschauen generieren" aus.`,
+    `${count} Anhang/Anhänge ohne Vorschau. Führe "Fehlende Vorschauen generieren" aus.`,
   'notice.generated-previews': (count: number) =>
-    `Attachment Bases: ${count} Vorschau(en) generiert.`,
+    `${count} Vorschau(en) generiert.`,
   'notice.moved-twins': (count: number, folder: string) =>
-    `Attachment Bases: ${count} Zwillingsdatei(en) nach ${folder} verschoben.`,
-  'notice.base-created': 'Attachment Bases: Basisdatei erstellt/aktualisiert.',
+    `${count} Zwillingsdatei(en) nach ${folder} verschoben.`,
+  'notice.base-created': 'Basisdatei erstellt/aktualisiert.',
   'notice.deleted-twins': (count: number) =>
-    `Attachment Bases: ${count} Zwillingsdatei(en) gelöscht.`,
+    `${count} Zwillingsdatei(en) gelöscht.`,
   'notice.resynced': (name: string) =>
     `Zwilling neu synchronisiert für ${name}`,
 

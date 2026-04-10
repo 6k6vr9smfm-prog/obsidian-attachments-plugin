@@ -1,10 +1,10 @@
-import { AttachmentBasesSettings } from './settings';
+import { AttachmentsAutopilotSettings } from './settings';
 import { VaultAdapter } from './twin-manager';
 import { t } from './i18n';
 
 const BASE_FILENAME = 'attachments.base';
 
-export function getBaseContent(settings: AttachmentBasesSettings): string {
+export function getBaseContent(settings: AttachmentsAutopilotSettings): string {
   const folder = settings.twinFolder || '.';
 
   return `filters:
@@ -35,7 +35,7 @@ views:
 
 export async function createAttachmentBase(
   vault: VaultAdapter,
-  settings: AttachmentBasesSettings,
+  settings: AttachmentsAutopilotSettings,
 ): Promise<void> {
   const existing = vault.getAbstractFileByPath(BASE_FILENAME);
   if (existing) return;
@@ -46,7 +46,7 @@ export async function createAttachmentBase(
 
 export async function recreateAttachmentBase(
   vault: VaultAdapter,
-  settings: AttachmentBasesSettings,
+  settings: AttachmentsAutopilotSettings,
 ): Promise<void> {
   const existing = vault.getAbstractFileByPath(BASE_FILENAME);
   const content = getBaseContent(settings);

@@ -1,10 +1,29 @@
 import { App, TFile } from 'obsidian';
 
 /**
+ * Shape of the Templater plugin's public runtime we rely on.
+ * This interface is intentionally minimal — only the methods we call.
+ * Accessing other plugins requires going through `app.plugins`, which is
+ * not part of Obsidian's public API, hence the `any` cast in getTemplaterPlugin().
+ */
+interface TemplaterPlugin {
+  templater: {
+    overwrite_file_commands(file: TFile): Promise<void>;
+  };
+}
+
+function getTemplaterPlugin(app: App): TemplaterPlugin | undefined {
+  // `app.plugins` is not in Obsidian's public API. This is the standard
+  // cross-plugin integration pattern used throughout the community.
+  return (app as unknown as { plugins?: { plugins?: Record<string, unknown> } })
+    .plugins?.plugins?.['templater-obsidian'] as TemplaterPlugin | undefined;
+}
+
+/**
  * Checks if Templater plugin is installed and enabled.
  */
 export function isTemplaterAvailable(app: App): boolean {
-  return !!(app as any).plugins?.plugins?.['templater-obsidian'];
+  return !!getTemplaterPlugin(app);
 }
 
 /**
@@ -12,13 +31,13 @@ export function isTemplaterAvailable(app: App): boolean {
  * This overwrites the file content with Templater-processed output.
  */
 export async function runTemplaterOnFile(app: App, file: TFile): Promise<void> {
-  const templaterPlugin = (app as any).plugins?.plugins?.['templater-obsidian'];
+  const templaterPlugin = getTemplaterPlugin(app);
   if (!templaterPlugin) return;
 
   try {
     await templaterPlugin.templater.overwrite_file_commands(file);
   } catch (e) {
-    console.error('Attachment Bases: Templater processing failed', e);
+    console.error('Attachments Autopilot: Templater processing failed', e);
   }
 }
 
