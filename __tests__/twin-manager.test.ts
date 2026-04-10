@@ -98,6 +98,55 @@ User notes about this photo.`);
 
       expect(vault.has('attachments/twins/photo.png.md')).toBe(false);
     });
+
+    it('deletes the orphan preview thumbnail when the attachment is removed (pdf)', async () => {
+      settings = makeSettings({
+        twinFolder: 'attachments/twins',
+        watchedFolders: ['attachments/'],
+        generatePreviews: true,
+        previewFolder: 'attachments/twins/previews',
+      });
+      manager = new TwinManager(vault as any, settings);
+
+      vault.seed('attachments/twins/invoice.pdf.md', '---\nattachment-type: pdf\n---');
+      vault.seed('attachments/twins/previews/invoice.pdf.preview.png', 'fake-png-bytes');
+
+      await manager.deleteTwinByPath('attachments/invoice.pdf');
+
+      expect(vault.has('attachments/twins/invoice.pdf.md')).toBe(false);
+      expect(vault.has('attachments/twins/previews/invoice.pdf.preview.png')).toBe(false);
+    });
+
+    it('does not try to delete a preview for image attachments', async () => {
+      settings = makeSettings({
+        twinFolder: 'attachments/twins',
+        watchedFolders: ['attachments/'],
+        generatePreviews: true,
+        previewFolder: 'attachments/twins/previews',
+      });
+      manager = new TwinManager(vault as any, settings);
+
+      vault.seed('attachments/twins/photo.png.md', '---\nattachment-type: image\n---');
+      // Images use themselves as the preview — no separate thumbnail should exist
+      // and the delete path must not crash when the preview lookup returns null.
+
+      await expect(
+        manager.deleteTwinByPath('attachments/photo.png'),
+      ).resolves.toBeUndefined();
+      expect(vault.has('attachments/twins/photo.png.md')).toBe(false);
+    });
+
+    it('does not touch previews when generatePreviews is disabled', async () => {
+      // generatePreviews defaults to false in the top-level settings
+      vault.seed('attachments/twins/invoice.pdf.md', '---\nattachment-type: pdf\n---');
+      vault.seed('attachments/twins/previews/invoice.pdf.preview.png', 'fake');
+
+      await manager.deleteTwinByPath('attachments/invoice.pdf');
+
+      expect(vault.has('attachments/twins/invoice.pdf.md')).toBe(false);
+      // Preview left alone because the user opted out of preview generation
+      expect(vault.has('attachments/twins/previews/invoice.pdf.preview.png')).toBe(true);
+    });
   });
 
   describe('renameTwin', () => {

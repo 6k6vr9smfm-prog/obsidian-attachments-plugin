@@ -77,8 +77,27 @@ export class TwinManager {
   async deleteTwinByPath(attachmentPath: string): Promise<void> {
     const twinPath = getTwinPath(attachmentPath, this.settings);
     const twin = this.vault.getAbstractFileByPath(twinPath);
-    if (twin && twin instanceof TFile) {
+    if (twin instanceof TFile) {
       await this.vault.delete(twin);
+    }
+
+    // Clean up the generated preview thumbnail, if any.
+    // Only applies to non-image types — images reuse the attachment itself
+    // as their preview, so there is no separate thumbnail file to remove.
+    if (this.settings.generatePreviews) {
+      const ext = attachmentPath.split('.').pop() || '';
+      const type = classifyType(ext);
+      if (PreviewType.needsGeneration(type)) {
+        const previewPath = getPreviewThumbnailPath(attachmentPath, this.settings);
+        const preview = this.vault.getAbstractFileByPath(previewPath);
+        if (preview instanceof TFile) {
+          try {
+            await this.vault.delete(preview);
+          } catch (e) {
+            console.error('Attachments Autopilot: failed to delete orphan preview', previewPath, e);
+          }
+        }
+      }
     }
   }
 
