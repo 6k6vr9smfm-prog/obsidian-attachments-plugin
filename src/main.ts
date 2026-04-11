@@ -70,9 +70,9 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
 
       if (this.settings.syncOnStartup) {
         try {
-          const { created, skipped } = await this.twinManager.syncAll();
-          if (created > 0) {
-            new Notice(t('notice.synced-startup')(created, skipped));
+          const { created, updated } = await this.twinManager.syncAll();
+          if (created > 0 || updated > 0) {
+            new Notice(t('notice.synced-startup')(created, updated));
           }
         } catch (e) {
           console.error('Attachments Autopilot: startup sync failed', e);
@@ -96,8 +96,8 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       id: 'sync-all',
       name: t('cmd.sync-all'),
       callback: async () => {
-        const { created, skipped } = await this.twinManager.syncAll();
-        new Notice(t('notice.synced')(created, skipped));
+        const { created, updated } = await this.twinManager.syncAll();
+        new Notice(t('notice.synced')(created, updated));
       },
     });
 

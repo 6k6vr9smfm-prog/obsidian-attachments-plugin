@@ -286,14 +286,37 @@ attachment-preview: ""
       expect(result.created).toBe(2);
     });
 
-    it('skips files that already have twins', async () => {
+    it('updates (re-merges) files that already have twins', async () => {
       vault.seed('attachments/a.png', 'binary-data');
       vault.seed('attachments/twins/a.png.md', '---\nattachment-type: image\n---');
 
       const result = await manager.syncAll();
 
       expect(result.created).toBe(0);
-      expect(result.skipped).toBe(1);
+      expect(result.updated).toBe(1);
+    });
+
+    it('propagates newly-added customFields to pre-existing twins on re-sync (T3.6)', async () => {
+      // Twin was created before the user added any customFields
+      vault.seed('attachments/a.png', 'binary-data');
+      vault.seed(
+        'attachments/twins/a.png.md',
+        '---\nattachment: "[[attachments/a.png]]"\nattachment-type: image\ncategories: attachments\nattachment-size: 1024\ncreated: 2024-04-04\nmodified: 2024-04-04\nattachment-preview: ""\n---\n\n![[attachments/a.png]]\n',
+      );
+
+      // User now adds customFields and runs Sync all
+      settings.customFields = 'project: inbox\nstatus: unreviewed';
+      manager = new TwinManager(vault as any, settings);
+
+      const result = await manager.syncAll();
+
+      expect(result.created).toBe(0);
+      expect(result.updated).toBe(1);
+      const content = vault.getContent('attachments/twins/a.png.md')!;
+      expect(content).toContain('project: inbox');
+      expect(content).toContain('status: unreviewed');
+      // Managed keys still present
+      expect(content).toContain('attachment-type: image');
     });
 
     it('skips markdown files', async () => {

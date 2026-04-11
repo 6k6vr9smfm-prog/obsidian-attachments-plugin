@@ -9,10 +9,10 @@ export default {
   'cmd.import-files': 'Importar archivos desde el dispositivo',
 
   // Notices
-  'notice.synced-startup': (created: number, skipped: number) =>
-    `${created} gemelo(s) sincronizado(s), ${skipped} omitido(s).`,
-  'notice.synced': (created: number, skipped: number) =>
-    `${created} gemelo(s) creado(s), ${skipped} ya sincronizado(s).`,
+  'notice.synced-startup': (created: number, updated: number) =>
+    `Gemelos sincronizados — ${created} creado(s), ${updated} actualizado(s).`,
+  'notice.synced': (created: number, updated: number) =>
+    `Gemelos sincronizados — ${created} creado(s), ${updated} actualizado(s).`,
   'notice.missing-previews': (count: number) =>
     `${count} adjunto(s) sin vista previa. Ejecuta "Generar vistas previas faltantes" para corregir.`,
   'notice.generated-previews': (count: number) =>

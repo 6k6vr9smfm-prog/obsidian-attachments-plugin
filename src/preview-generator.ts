@@ -53,9 +53,16 @@ export interface PreviewGeneratorAdapter {
 /**
  * Generates preview thumbnails for attachments that need them.
  * Must run inside Obsidian (requires DOM, canvas, loadPdfJs).
+ *
+ * Takes the `TFile` directly (not a path) because on the reactive
+ * create-event path, `adapter.getAbstractFileByPath(path)` can return
+ * null before Obsidian has finished indexing the newly-written file —
+ * producing a silent preview-generation miss for PDFs in subfolders.
+ * The caller already holds the `TFile` from the event, so thread it
+ * through to sidestep the race entirely.
  */
 export async function generatePreviewThumbnail(
-  attachmentPath: string,
+  file: TFile,
   type: string,
   adapter: PreviewGeneratorAdapter,
   settings: AttachmentsAutopilotSettings,
@@ -64,7 +71,7 @@ export async function generatePreviewThumbnail(
   // Skip on platforms without DOM (e.g. Obsidian Mobile)
   if (typeof document === 'undefined') return false;
 
-  const thumbPath = getPreviewThumbnailPath(attachmentPath, settings, scope);
+  const thumbPath = getPreviewThumbnailPath(file.path, settings, scope);
 
   // Skip if thumbnail already exists
   if (adapter.getAbstractFileByPath(thumbPath)) return false;
@@ -84,32 +91,29 @@ export async function generatePreviewThumbnail(
 
   try {
     if (type === 'pdf') {
-      return await generatePdfPreview(attachmentPath, thumbPath, adapter);
+      return await generatePdfPreview(file, thumbPath, adapter);
     }
     if (type === 'video') {
-      return await generateVideoPreview(attachmentPath, thumbPath, adapter);
+      return await generateVideoPreview(file, thumbPath, adapter);
     }
     if (type === 'audio') {
       return await generateAudioPreview(thumbPath, adapter);
     }
     if (type === 'other') {
-      return await generateGenericPreview(attachmentPath, thumbPath, adapter);
+      return await generateGenericPreview(file.path, thumbPath, adapter);
     }
   } catch (e) {
-    console.error(`Attachments Autopilot: failed to generate preview for ${attachmentPath}`, e);
+    console.error(`Attachments Autopilot: failed to generate preview for ${file.path}`, e);
   }
 
   return false;
 }
 
 async function generatePdfPreview(
-  attachmentPath: string,
+  file: TFile,
   thumbPath: string,
   adapter: PreviewGeneratorAdapter,
 ): Promise<boolean> {
-  const file = adapter.getAbstractFileByPath(attachmentPath);
-  if (!(file instanceof TFile)) return false;
-
   const data = await adapter.readBinary(file);
   const pdfjsLib = await loadPdfJs();
   const pdf = await pdfjsLib.getDocument({ data }).promise;
@@ -138,13 +142,10 @@ async function generatePdfPreview(
 }
 
 async function generateVideoPreview(
-  attachmentPath: string,
+  file: TFile,
   thumbPath: string,
   adapter: PreviewGeneratorAdapter,
 ): Promise<boolean> {
-  const file = adapter.getAbstractFileByPath(attachmentPath);
-  if (!(file instanceof TFile)) return false;
-
   const data = await adapter.readBinary(file);
   const blob = new Blob([data], { type: 'video/mp4' });
   const url = URL.createObjectURL(blob);

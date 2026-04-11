@@ -9,10 +9,10 @@ export default {
   'cmd.import-files': 'Importa file dal dispositivo',
 
   // Notices
-  'notice.synced-startup': (created: number, skipped: number) =>
-    `${created} gemello/i sincronizzato/i, ${skipped} saltato/i.`,
-  'notice.synced': (created: number, skipped: number) =>
-    `${created} gemello/i creato/i, ${skipped} già sincronizzato/i.`,
+  'notice.synced-startup': (created: number, updated: number) =>
+    `Gemelli sincronizzati — ${created} creato/i, ${updated} aggiornato/i.`,
+  'notice.synced': (created: number, updated: number) =>
+    `Gemelli sincronizzati — ${created} creato/i, ${updated} aggiornato/i.`,
   'notice.missing-previews': (count: number) =>
     `${count} allegato/i senza anteprima. Esegui "Genera anteprime mancanti" per correggere.`,
   'notice.generated-previews': (count: number) =>

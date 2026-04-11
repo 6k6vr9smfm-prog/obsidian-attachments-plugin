@@ -9,10 +9,10 @@ export default {
   'cmd.import-files': 'Dateien vom Gerät importieren',
 
   // Notices
-  'notice.synced-startup': (created: number, skipped: number) =>
-    `${created} Zwilling(e) synchronisiert, ${skipped} übersprungen.`,
-  'notice.synced': (created: number, skipped: number) =>
-    `${created} Zwilling(e) erstellt, ${skipped} bereits synchronisiert.`,
+  'notice.synced-startup': (created: number, updated: number) =>
+    `Zwillinge synchronisiert — ${created} erstellt, ${updated} aktualisiert.`,
+  'notice.synced': (created: number, updated: number) =>
+    `Zwillinge synchronisiert — ${created} erstellt, ${updated} aktualisiert.`,
   'notice.missing-previews': (count: number) =>
     `${count} Anhang/Anhänge ohne Vorschau. Führe "Fehlende Vorschauen generieren" aus.`,
   'notice.generated-previews': (count: number) =>

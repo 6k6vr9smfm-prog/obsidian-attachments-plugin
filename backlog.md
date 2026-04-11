@@ -40,13 +40,14 @@
 - [X] 0.6.7 — flip `generatePreviews` default to `true` so new installs get thumbnails out of the box
 - [X] 0.6.8 — drop `watchedFolders` setting; derive the plugin's scope from Obsidian's native `Files and links → Default location for new attachments` (supports absolute paths, `/`, `./`, `./subfolder`)
 - [X] 0.6.8 — refactor `generateMissingPreviews` to discover twins via the canonical `attachment:` frontmatter key, so it's resilient to runtime scope changes (same pattern as the 0.6.7 `moveTwinsToFolder` fix)
+- [X] 0.6.9 — fix T3.6 for real: `syncAll` now always runs the read-modify-write path instead of early-returning on existing twins, so newly-added `customFields` propagate to pre-existing twins. Notice shape changed from `{ created, skipped }` to `{ created, updated }`. The 0.6.7 `mergeFrontmatter` fix was correct but unreachable.
+- [X] 0.6.9 — fix reactive PDF preview race: `generatePreviewThumbnail` now takes the `TFile` from the create event directly instead of re-resolving via `getAbstractFileByPath`, which could return null before Obsidian finished indexing the new file (visible on PDFs created in subfolders).
 
 ---
 
 ## Open
 
 ### Investigations
-- [ ] **Race en preview de PDF reactivo.** Al crear PDFs en subcarpetas (visto en T1.2 y T3.8), el `attachment-preview` queda escrito pero el thumbnail no se genera. Hipótesis: `getAbstractFileByPath` retorna `null` antes de que Obsidian indexe el nuevo archivo. Workaround actual: ejecutar **Generate missing previews**. Investigar gate explícito (`await sleep(0)`) o usar el `TFile` que llega en el evento `create` directamente sin re-resolver por path.
 - [ ] **Levantar el gate móvil de preview generation.** El check `typeof document === 'undefined'` en `preview-generator.ts:70` puede ser excesivamente conservador — WKWebView sí tiene `document`. Verificar empíricamente en iOS si PDF.js + canvas funcionan; si sí, eliminar el gate y dar previews móviles "gratis". External APIs descartados (privacidad, coste, review).
 
 ### Deferred features

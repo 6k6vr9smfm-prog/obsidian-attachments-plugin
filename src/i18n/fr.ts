@@ -9,10 +9,10 @@ export default {
   'cmd.import-files': 'Importer des fichiers depuis l\'appareil',
 
   // Notices
-  'notice.synced-startup': (created: number, skipped: number) =>
-    `${created} jumeau(x) synchronisé(s), ${skipped} ignoré(s).`,
-  'notice.synced': (created: number, skipped: number) =>
-    `${created} jumeau(x) créé(s), ${skipped} déjà synchronisé(s).`,
+  'notice.synced-startup': (created: number, updated: number) =>
+    `Jumeaux synchronisés — ${created} créé(s), ${updated} mis à jour.`,
+  'notice.synced': (created: number, updated: number) =>
+    `Jumeaux synchronisés — ${created} créé(s), ${updated} mis à jour.`,
   'notice.missing-previews': (count: number) =>
     `${count} pièce(s) jointe(s) sans aperçu. Exécutez « Générer les aperçus manquants » pour corriger.`,
   'notice.generated-previews': (count: number) =>

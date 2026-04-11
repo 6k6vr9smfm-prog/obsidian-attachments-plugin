@@ -61,10 +61,13 @@ export class TwinManager {
     if (this.settings.generatePreviews) {
       previewValue = getPreviewValue(file.path, type, this.settings, scope);
 
-      // Generate thumbnail if needed and adapter is available
+      // Generate thumbnail if needed and adapter is available. Pass the
+      // TFile directly (not the path) to sidestep an indexing race where
+      // `getAbstractFileByPath` returns null for a just-created file in
+      // a subfolder — the reactive create-event path hits this on PDFs.
       if (PreviewType.needsGeneration(type) && this.previewAdapter) {
         await generatePreviewThumbnail(
-          file.path,
+          file,
           type,
           this.previewAdapter,
           this.settings,
@@ -172,25 +175,30 @@ export class TwinManager {
     }
   }
 
-  async syncAll(): Promise<{ created: number; skipped: number }> {
+  async syncAll(): Promise<{ created: number; updated: number }> {
     const scope = this.resolveScope();
     let created = 0;
-    let skipped = 0;
+    let updated = 0;
 
     for (const file of this.vault.getFiles()) {
       if (!shouldProcess(file, this.settings, scope)) continue;
 
       const twinPath = getTwinPath(file.path, this.settings, scope);
-      if (this.vault.getAbstractFileByPath(twinPath)) {
-        skipped++;
-        continue;
-      }
+      const existed = this.vault.getAbstractFileByPath(twinPath) instanceof TFile;
 
+      // Always call createTwin — it's idempotent (read-modify-write via
+      // mergeFrontmatter on existing twins). Skipping when the twin exists
+      // would prevent newly-added customFields / template keys from
+      // propagating to pre-existing twins on re-sync (T3.6).
       await this.createTwin(file);
-      created++;
+      if (existed) {
+        updated++;
+      } else {
+        created++;
+      }
     }
 
-    return { created, skipped };
+    return { created, updated };
   }
 
   async deleteAllTwins(): Promise<number> {
@@ -298,15 +306,20 @@ export class TwinManager {
 
       if (!needsUpdate) continue;
 
-      // Generate thumbnail if needed
+      // Generate thumbnail if needed. Resolve the TFile first — this is
+      // the non-reactive path (command / startup), so the file is already
+      // indexed and the lookup is safe.
       if (PreviewType.needsGeneration(type) && this.previewAdapter) {
-        await generatePreviewThumbnail(
-          attachmentPath,
-          type,
-          this.previewAdapter,
-          this.settings,
-          scope,
-        );
+        const attachmentFile = this.vault.getAbstractFileByPath(attachmentPath);
+        if (attachmentFile instanceof TFile) {
+          await generatePreviewThumbnail(
+            attachmentFile,
+            type,
+            this.previewAdapter,
+            this.settings,
+            scope,
+          );
+        }
       }
 
       // Atomically update the twin's frontmatter (replace existing line, or insert if absent).

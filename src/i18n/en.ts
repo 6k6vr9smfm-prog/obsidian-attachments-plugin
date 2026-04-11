@@ -9,10 +9,10 @@ export default {
   'cmd.import-files': 'Import files from device',
 
   // Notices
-  'notice.synced-startup': (created: number, skipped: number) =>
-    `Synced ${created} twin(s), ${skipped} skipped.`,
-  'notice.synced': (created: number, skipped: number) =>
-    `Created ${created} twin(s), ${skipped} already synced.`,
+  'notice.synced-startup': (created: number, updated: number) =>
+    `Synced twins — ${created} created, ${updated} updated.`,
+  'notice.synced': (created: number, updated: number) =>
+    `Synced twins — ${created} created, ${updated} updated.`,
   'notice.missing-previews': (count: number) =>
     `${count} attachment(s) missing previews. Run "Generate missing previews" to fix.`,
   'notice.generated-previews': (count: number) =>

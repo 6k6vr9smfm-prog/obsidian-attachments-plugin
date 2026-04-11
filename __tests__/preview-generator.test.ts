@@ -1,4 +1,4 @@
-import { makeSettings } from './__mocks__/helpers';
+import { makeSettings, makeTFile } from './__mocks__/helpers';
 import {
   getPreviewValue,
   getPreviewThumbnailPath,
@@ -84,7 +84,7 @@ describe('generatePreviewThumbnail — mobile guard', () => {
         createFolder: jest.fn(),
       };
       return generatePreviewThumbnail(
-        'attachments/doc.pdf',
+        makeTFile('attachments/doc.pdf'),
         'pdf',
         adapter,
         settings,
