@@ -20,7 +20,7 @@ export const DEFAULT_SETTINGS: AttachmentsAutopilotSettings = {
   twinFolder: 'attachments/twins',
   watchedFolders: ['attachments/'],
   excludePatterns: [],
-  generatePreviews: false,
+  generatePreviews: true,
   previewFolder: 'attachments/twins/previews',
   baseCreated: false,
   customFields: '',

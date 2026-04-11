@@ -198,6 +198,15 @@ export function mergeFrontmatter(existingContent: string, generatedContent: stri
     }
   }
 
+  // Finally, forward any non-managed keys from generated that the user hasn't
+  // seen yet. This lets newly-added settings.customFields (or template fields)
+  // propagate to pre-existing twins on re-sync, without clobbering manual edits.
+  for (const [key, value] of Object.entries(generated.data)) {
+    if (managedSet.has(key)) continue;
+    if (key in merged) continue;
+    merged[key] = value;
+  }
+
   // Build frontmatter string
   const lines = ['---'];
   for (const [key, value] of Object.entries(merged)) {

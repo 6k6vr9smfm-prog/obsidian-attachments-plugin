@@ -14,6 +14,7 @@ describe('TwinManager', () => {
       twinFolder: 'attachments/twins',
       watchedFolders: ['attachments/'],
       excludePatterns: [],
+      generatePreviews: false,
     });
     manager = new TwinManager(vault as any, settings);
   });
@@ -374,7 +375,10 @@ attachment-preview: ""
     });
 
     it('preserves subdirectory structure in new folder', async () => {
-      vault.seed('attachments/twins/deep/nested/file.png.md', '---\nattachment-type: image\n---');
+      vault.seed(
+        'attachments/twins/deep/nested/file.png.md',
+        '---\nattachment: "[[attachments/deep/nested/file.png]]"\nattachment-type: image\n---',
+      );
 
       await manager.moveTwinsToFolder('new-twins');
 
@@ -387,12 +391,59 @@ attachment-preview: ""
     });
 
     it('does nothing if target is the same as current twinFolder', async () => {
-      vault.seed('attachments/twins/a.png.md', '---\nattachment-type: image\n---');
+      vault.seed(
+        'attachments/twins/a.png.md',
+        '---\nattachment: "[[attachments/a.png]]"\nattachment-type: image\n---',
+      );
 
       const count = await manager.moveTwinsToFolder('attachments/twins');
 
       expect(count).toBe(0);
       expect(vault.has('attachments/twins/a.png.md')).toBe(true);
+    });
+
+    it('still moves twins when settings.twinFolder was already updated to the new value', async () => {
+      // T2.3 regression: the real flow is (1) user edits the settings UI, which
+      // mutates settings.twinFolder in memory, then (2) runs the command. The
+      // command must not rely on settings.twinFolder to know the *previous*
+      // location — it must discover existing twins some other way (we use the
+      // canonical `attachment:` frontmatter key).
+      vault.seed(
+        'attachments/twins/a.png.md',
+        '---\nattachment: "[[attachments/a.png]]"\nattachment-type: image\n---',
+      );
+      vault.seed(
+        'attachments/twins/sub/b.pdf.md',
+        '---\nattachment: "[[attachments/sub/b.pdf]]"\nattachment-type: pdf\n---',
+      );
+
+      // Simulate the UI having already mutated the setting to the new value.
+      settings.twinFolder = 'meta/twins';
+
+      const count = await manager.moveTwinsToFolder('meta/twins');
+
+      expect(count).toBe(2);
+      expect(vault.has('attachments/twins/a.png.md')).toBe(false);
+      expect(vault.has('attachments/twins/sub/b.pdf.md')).toBe(false);
+      expect(vault.has('meta/twins/a.png.md')).toBe(true);
+      expect(vault.has('meta/twins/sub/b.pdf.md')).toBe(true);
+    });
+
+    it('ignores .md files that are not twins (no attachment frontmatter)', async () => {
+      vault.seed(
+        'notes/daily.md',
+        '---\ntags: [daily]\n---\n\nJust a normal note.',
+      );
+      vault.seed(
+        'attachments/twins/a.png.md',
+        '---\nattachment: "[[attachments/a.png]]"\nattachment-type: image\n---',
+      );
+
+      const count = await manager.moveTwinsToFolder('meta/twins');
+
+      expect(count).toBe(1);
+      expect(vault.has('notes/daily.md')).toBe(true);
+      expect(vault.has('meta/twins/a.png.md')).toBe(true);
     });
   });
 

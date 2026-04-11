@@ -31,3 +31,36 @@
 - [X] Preview thumbnails auto-excluded from twin creation
 - [X] Templater integration — use a Templater template for twin file content instead of the built-in format
 - [X] Twin file template customization (user-defined frontmatter fields)
+- [X] Mobile compatibility — skip preview generation on platforms without DOM (Obsidian Mobile)
+- [X] Rename plugin to "Attachments Autopilot" and prep for Obsidian community submission
+- [X] "Import files from device" command — cross-platform (desktop, iOS, Android) multi-file import via native picker; honors Obsidian's native attachment folder setting
+- [X] MANUAL-TESTS.md — living E2E checklist covering reactive flow, commands, settings, previews, and import
+- [X] 0.6.7 — fix `moveTwinsToFolder` (T2.3): detect twins by canonical `attachment:` frontmatter so the command is resilient to the UI mutating `settings.twinFolder` before invocation
+- [X] 0.6.7 — fix `mergeFrontmatter` (T3.6): forward non-managed keys from the generated content to existing twins on re-sync, so new `customFields` propagate without clobbering manual edits
+- [X] 0.6.7 — flip `generatePreviews` default to `true` so new installs get thumbnails out of the box
+
+---
+
+## Open
+
+### Investigations
+- [ ] **Race en preview de PDF reactivo.** Al crear PDFs en subcarpetas (visto en T1.2 y T3.8), el `attachment-preview` queda escrito pero el thumbnail no se genera. Hipótesis: `getAbstractFileByPath` retorna `null` antes de que Obsidian indexe el nuevo archivo. Workaround actual: ejecutar **Generate missing previews**. Investigar gate explícito (`await sleep(0)`) o usar el `TFile` que llega en el evento `create` directamente sin re-resolver por path.
+- [ ] **Levantar el gate móvil de preview generation.** El check `typeof document === 'undefined'` en `preview-generator.ts:70` puede ser excesivamente conservador — WKWebView sí tiene `document`. Verificar empíricamente en iOS si PDF.js + canvas funcionan; si sí, eliminar el gate y dar previews móviles "gratis". External APIs descartados (privacidad, coste, review).
+
+### Deferred features
+- [ ] **Reemplazar `watchedFolders` por la setting nativa de Obsidian** (`Files and links → Default location for new attachments`). Breaking change que requiere migración silenciosa, notice de upgrade, manejo de paths relativos (`./`, `./assets`), y rewrite de `shouldProcess()`. Plan discutido pero deferido.
+- [ ] **Insertar wiki-links después del import.** Toggle opcional para añadir `![[file]]` en la nota activa al cursor tras ejecutar el comando de import.
+- [ ] **Drag-and-drop import.** Ruta UX paralela al comando — soltar archivos desde el OS sobre la ventana de Obsidian.
+
+### Validación pendiente (MANUAL-TESTS.md sección 4)
+- [ ] T4.1–T4.8 desktop: single, multi, collision, cancel, source-path activo, dentro/fuera de watched folders, partial failure.
+- [ ] T4.9–T4.12 iOS: Files/iCloud, Photos, multi, cancel.
+- [ ] T4.13–T4.14 Android SAF: Downloads + multi-source.
+- [ ] T5.6 confirmar gate móvil para PDF/video/audio sin errores en consola.
+- [ ] T6.6 vault en iCloud (macOS), repetir flow reactivo + import.
+
+### Mantenimiento
+- [ ] **GitHub Actions Node 20 → 24.** El workflow `release.yml` usa `actions/checkout@v4`, `actions/setup-node@v4`, `softprops/action-gh-release@v2`, todos sobre Node 20. Forzado a Node 24 el 2 de junio de 2026; Node 20 eliminado el 16 de septiembre de 2026.
+
+### Próximos releases
+- [ ] **0.7.0** — reemplazar `watchedFolders` por la setting nativa de Obsidian (plan discutido y deferido; breaking change que requiere migración silenciosa y command "Rebuild all twins at current paths").

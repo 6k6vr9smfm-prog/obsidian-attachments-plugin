@@ -186,19 +186,28 @@ export class TwinManager {
   }
 
   async moveTwinsToFolder(newFolder: string): Promise<number> {
-    const currentFolder = this.settings.twinFolder;
-    if (newFolder === currentFolder) return 0;
-
-    const prefix = currentFolder + '/';
-    const twins = this.vault.getFiles().filter((f) => f.path.startsWith(prefix));
+    // Discover twins by their canonical `attachment:` frontmatter key rather
+    // than by path prefix. The UI mutates settings.twinFolder before invoking
+    // this command, so comparing against the current setting would miss the
+    // real previous location entirely (T2.3 bug).
     let count = 0;
+    const scopedSettings = { ...this.settings, twinFolder: newFolder };
+    const candidates = this.vault.getFiles().filter((f) => f.path.endsWith('.md'));
 
-    for (const twin of twins) {
-      const relativePath = twin.path.slice(prefix.length);
-      const newPath = newFolder + '/' + relativePath;
+    for (const file of candidates) {
+      const content = await this.vault.read(file);
+      const { data } = parseFrontmatter(content);
+      const raw = data['attachment'];
+      if (typeof raw !== 'string' || !raw) continue;
 
-      await this.ensureParentFolder(newPath);
-      await this.vault.rename(twin, newPath);
+      const attachmentPath = raw.replace(/^\[\[/, '').replace(/\]\]$/, '').trim();
+      if (!attachmentPath) continue;
+
+      const desiredPath = getTwinPath(attachmentPath, scopedSettings);
+      if (file.path === desiredPath) continue;
+
+      await this.ensureParentFolder(desiredPath);
+      await this.vault.rename(file, desiredPath);
       count++;
     }
 

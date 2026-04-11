@@ -233,6 +233,69 @@ attachment-preview: ""
     expect(merged).toContain('Very important stuff.');
   });
 
+  it('propagates new non-managed keys from generated when missing in existing', () => {
+    // T3.6 regression: user adds customFields to settings AFTER twins already exist.
+    // On re-sync, the newly-generated content carries the new fields, and the
+    // merge must forward them into the existing twin (without clobbering any
+    // manual edits the user may have made).
+    const existing = `---
+attachment: "[[attachments/photo.png]]"
+attachment-type: image
+categories: attachments
+attachment-size: 1024
+created: 2024-04-04
+modified: 2024-04-04
+attachment-preview: ""
+---
+
+![[attachments/photo.png]]`;
+
+    const generated = `---
+attachment: "[[attachments/photo.png]]"
+attachment-type: image
+categories: attachments
+attachment-size: 1024
+created: 2024-04-04
+modified: 2024-04-04
+attachment-preview: ""
+project: my-project
+status: unreviewed
+---
+
+![[attachments/photo.png]]`;
+
+    const merged = mergeFrontmatter(existing, generated);
+    expect(merged).toContain('project: my-project');
+    expect(merged).toContain('status: unreviewed');
+  });
+
+  it('does not overwrite manually-edited non-managed keys with generated values', () => {
+    // The user has tweaked `project: my-project` → `project: renamed`; a later
+    // re-sync should NOT replace it with whatever customFields currently say.
+    const existing = `---
+attachment: "[[attachments/photo.png]]"
+attachment-type: image
+project: renamed-by-user
+---`;
+
+    const generated = `---
+attachment: "[[attachments/photo.png]]"
+attachment-type: image
+categories: attachments
+attachment-size: 1024
+created: 2024-04-04
+modified: 2024-04-04
+attachment-preview: ""
+project: my-project
+---
+
+![[attachments/photo.png]]`;
+
+    const merged = mergeFrontmatter(existing, generated);
+    expect(merged).toContain('project: renamed-by-user');
+    expect(merged).not.toContain('project: my-project');
+  });
+
   it('preserves custom fields from settings through merge', () => {
     const existing = `---
 attachment: "[[attachments/photo.png]]"
