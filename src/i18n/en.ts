@@ -6,6 +6,7 @@ export default {
   'cmd.recreate-base': 'Create or update Attachments base file',
   'cmd.delete-all-twins': 'Delete all twin files',
   'cmd.resync-twin': 'Re-sync twin file',
+  'cmd.import-files': 'Import files from device',
 
   // Notices
   'notice.synced-startup': (created: number, skipped: number) =>
@@ -23,6 +24,12 @@ export default {
     `Deleted ${count} twin file(s).`,
   'notice.resynced': (name: string) =>
     `Twin re-synced for ${name}`,
+  'notice.imported': (imported: number, failed: number) =>
+    failed > 0
+      ? `Imported ${imported} file(s), ${failed} failed.`
+      : `Imported ${imported} file(s).`,
+  'notice.import-failed': (name: string, error: string) =>
+    `Failed to import ${name}: ${error}`,
 
   // Settings
   'settings.sync-on-startup': 'Sync on startup',

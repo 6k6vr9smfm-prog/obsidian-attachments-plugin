@@ -6,6 +6,7 @@ export default {
   'cmd.recreate-base': 'Créer ou mettre à jour le fichier base des pièces jointes',
   'cmd.delete-all-twins': 'Supprimer tous les fichiers jumeaux',
   'cmd.resync-twin': 'Re-synchroniser le fichier jumeau',
+  'cmd.import-files': 'Importer des fichiers depuis l\'appareil',
 
   // Notices
   'notice.synced-startup': (created: number, skipped: number) =>
@@ -23,6 +24,12 @@ export default {
     `${count} fichier(s) jumeau(x) supprimé(s).`,
   'notice.resynced': (name: string) =>
     `Jumeau re-synchronisé pour ${name}`,
+  'notice.imported': (imported: number, failed: number) =>
+    failed > 0
+      ? `${imported} fichier(s) importé(s), ${failed} échoué(s).`
+      : `${imported} fichier(s) importé(s).`,
+  'notice.import-failed': (name: string, error: string) =>
+    `Échec de l'importation de ${name} : ${error}`,
 
   // Settings
   'settings.sync-on-startup': 'Synchroniser au démarrage',

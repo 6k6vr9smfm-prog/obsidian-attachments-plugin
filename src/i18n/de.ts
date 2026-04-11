@@ -6,6 +6,7 @@ export default {
   'cmd.recreate-base': 'Anhänge-Basisdatei erstellen oder aktualisieren',
   'cmd.delete-all-twins': 'Alle Zwillingsdateien löschen',
   'cmd.resync-twin': 'Zwillingsdatei neu synchronisieren',
+  'cmd.import-files': 'Dateien vom Gerät importieren',
 
   // Notices
   'notice.synced-startup': (created: number, skipped: number) =>
@@ -23,6 +24,12 @@ export default {
     `${count} Zwillingsdatei(en) gelöscht.`,
   'notice.resynced': (name: string) =>
     `Zwilling neu synchronisiert für ${name}`,
+  'notice.imported': (imported: number, failed: number) =>
+    failed > 0
+      ? `${imported} Datei(en) importiert, ${failed} fehlgeschlagen.`
+      : `${imported} Datei(en) importiert.`,
+  'notice.import-failed': (name: string, error: string) =>
+    `Import von ${name} fehlgeschlagen: ${error}`,
 
   // Settings
   'settings.sync-on-startup': 'Beim Start synchronisieren',

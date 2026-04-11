@@ -6,6 +6,7 @@ export default {
   'cmd.recreate-base': 'Crear o actualizar archivo base de adjuntos',
   'cmd.delete-all-twins': 'Eliminar todos los archivos gemelos',
   'cmd.resync-twin': 'Re-sincronizar archivo gemelo',
+  'cmd.import-files': 'Importar archivos desde el dispositivo',
 
   // Notices
   'notice.synced-startup': (created: number, skipped: number) =>
@@ -23,6 +24,12 @@ export default {
     `${count} archivo(s) gemelo(s) eliminado(s).`,
   'notice.resynced': (name: string) =>
     `Gemelo re-sincronizado para ${name}`,
+  'notice.imported': (imported: number, failed: number) =>
+    failed > 0
+      ? `${imported} archivo(s) importado(s), ${failed} fallido(s).`
+      : `${imported} archivo(s) importado(s).`,
+  'notice.import-failed': (name: string, error: string) =>
+    `Error al importar ${name}: ${error}`,
 
   // Settings
   'settings.sync-on-startup': 'Sincronizar al iniciar',

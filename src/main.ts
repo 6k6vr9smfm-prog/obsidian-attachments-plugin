@@ -4,6 +4,7 @@ import { TwinManager } from './twin-manager';
 import { shouldProcess, shouldProcessPath } from './file-utils';
 import { createAttachmentBase, recreateAttachmentBase } from './base-creator';
 import { isTemplaterAvailable, runTemplaterOnFile } from './templater-integration';
+import { importFiles, pickLocalFiles, ImportAdapter } from './import-command';
 import { t } from './i18n';
 
 export default class AttachmentsAutopilotPlugin extends Plugin {
@@ -111,6 +112,30 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       callback: async () => {
         const count = await this.twinManager.deleteAllTwins();
         new Notice(t('notice.deleted-twins')(count));
+      },
+    });
+
+    this.addCommand({
+      id: 'import-files-from-device',
+      name: t('cmd.import-files'),
+      callback: async () => {
+        const picked = await pickLocalFiles(true);
+        if (picked.length === 0) return;
+
+        const adapter: ImportAdapter = {
+          getAvailablePathForAttachment: (filename: string, sourcePath?: string) =>
+            this.app.fileManager.getAvailablePathForAttachment(filename, sourcePath ?? ''),
+          createBinary: (path: string, data: ArrayBuffer) =>
+            this.app.vault.createBinary(path, data),
+          getActiveMarkdownPath: () => this.app.workspace.getActiveFile()?.path,
+        };
+
+        const result = await importFiles(picked, adapter, this.twinManager);
+        new Notice(t('notice.imported')(result.imported.length, result.failed.length));
+        for (const fail of result.failed) {
+          new Notice(t('notice.import-failed')(fail.name, fail.error));
+          console.error('Attachments Autopilot: import failed', fail);
+        }
       },
     });
 

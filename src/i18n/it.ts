@@ -6,6 +6,7 @@ export default {
   'cmd.recreate-base': 'Crea o aggiorna il file base degli allegati',
   'cmd.delete-all-twins': 'Elimina tutti i file gemelli',
   'cmd.resync-twin': 'Ri-sincronizza il file gemello',
+  'cmd.import-files': 'Importa file dal dispositivo',
 
   // Notices
   'notice.synced-startup': (created: number, skipped: number) =>
@@ -23,6 +24,12 @@ export default {
     `${count} file gemello/i eliminato/i.`,
   'notice.resynced': (name: string) =>
     `Gemello ri-sincronizzato per ${name}`,
+  'notice.imported': (imported: number, failed: number) =>
+    failed > 0
+      ? `${imported} file importato/i, ${failed} fallito/i.`
+      : `${imported} file importato/i.`,
+  'notice.import-failed': (name: string, error: string) =>
+    `Impossibile importare ${name}: ${error}`,
 
   // Settings
   'settings.sync-on-startup': 'Sincronizza all\'avvio',
