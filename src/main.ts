@@ -1,20 +1,42 @@
-import { Plugin, TFile, TAbstractFile, Notice, Menu, MenuItem } from 'obsidian';
+import { Plugin, TFile, TAbstractFile, Notice, Menu, MenuItem, Vault } from 'obsidian';
 import { AttachmentsAutopilotSettings, AttachmentsAutopilotSettingTab, DEFAULT_SETTINGS } from './settings';
-import { TwinManager } from './twin-manager';
-import { shouldProcess, shouldProcessPath } from './file-utils';
+import { TwinManager, VaultAdapter } from './twin-manager';
+import { shouldProcess, shouldProcessPath, resolveWatchedScope } from './file-utils';
 import { createAttachmentBase, recreateAttachmentBase } from './base-creator';
 import { isTemplaterAvailable, runTemplaterOnFile } from './templater-integration';
 import { importFiles, pickLocalFiles, ImportAdapter } from './import-command';
 import { t } from './i18n';
 
+/**
+ * Reads Obsidian's `attachmentFolderPath` config. Undocumented but stable
+ * API (used by Obsidian Importer and other community plugins).
+ */
+function readAttachmentFolderPath(vault: Vault): string | undefined {
+  const getConfig = (vault as unknown as { getConfig?: (key: string) => unknown }).getConfig;
+  if (typeof getConfig !== 'function') return undefined;
+  const value = getConfig.call(vault, 'attachmentFolderPath');
+  return typeof value === 'string' ? value : undefined;
+}
+
 export default class AttachmentsAutopilotPlugin extends Plugin {
   settings!: AttachmentsAutopilotSettings;
   twinManager!: TwinManager;
+  private vaultAdapter!: VaultAdapter;
   private processing = new Set<string>();
+
+  private currentScope() {
+    return resolveWatchedScope(readAttachmentFolderPath(this.app.vault));
+  }
 
   async onload() {
     await this.loadSettings();
-    this.twinManager = new TwinManager(this.app.vault, this.settings);
+    this.vaultAdapter = Object.assign(
+      Object.create(this.app.vault) as Vault,
+      {
+        getAttachmentFolderPath: () => readAttachmentFolderPath(this.app.vault),
+      },
+    ) as unknown as VaultAdapter;
+    this.twinManager = new TwinManager(this.vaultAdapter, this.settings);
 
     // Wire preview adapter using real vault binary methods
     this.twinManager.setPreviewAdapter({
@@ -41,7 +63,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
 
       // Auto-create Base file on first install
       if (!this.settings.baseCreated) {
-        await createAttachmentBase(this.app.vault, this.settings);
+        await createAttachmentBase(this.vaultAdapter, this.settings);
         this.settings.baseCreated = true;
         await this.saveSettings();
       }
@@ -101,7 +123,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       id: 'recreate-base',
       name: t('cmd.recreate-base'),
       callback: async () => {
-        await recreateAttachmentBase(this.app.vault, this.settings);
+        await recreateAttachmentBase(this.vaultAdapter, this.settings);
         new Notice(t('notice.base-created'));
       },
     });
@@ -143,7 +165,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
 
     this.registerEvent(
       this.app.workspace.on('file-menu', (menu: Menu, file: TAbstractFile) => {
-        if (file instanceof TFile && shouldProcess(file, this.settings)) {
+        if (file instanceof TFile && shouldProcess(file, this.settings, this.currentScope())) {
           menu.addItem((item: MenuItem) => {
             item
               .setTitle(t('cmd.resync-twin'))
@@ -162,7 +184,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
     this.registerEvent(
       this.app.vault.on('create', async (file: TAbstractFile) => {
         if (!(file instanceof TFile)) return;
-        if (!shouldProcess(file, this.settings)) return;
+        if (!shouldProcess(file, this.settings, this.currentScope())) return;
         if (this.processing.has(file.path)) return;
 
         this.processing.add(file.path);
@@ -179,7 +201,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
         if (!(file instanceof TFile)) return;
 
         // If an attachment was deleted, delete its twin
-        if (shouldProcess(file, this.settings)) {
+        if (shouldProcess(file, this.settings, this.currentScope())) {
           await this.twinManager.deleteTwin(file);
           return;
         }
@@ -193,8 +215,9 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
         if (!(file instanceof TFile)) return;
         if (this.processing.has(file.path)) return;
 
-        const wasProcessable = shouldProcessPath(oldPath, this.settings);
-        const isProcessable = shouldProcess(file, this.settings);
+        const scope = this.currentScope();
+        const wasProcessable = shouldProcessPath(oldPath, this.settings, scope);
+        const isProcessable = shouldProcess(file, this.settings, scope);
 
         this.processing.add(file.path);
         try {

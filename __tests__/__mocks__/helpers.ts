@@ -22,10 +22,23 @@ export function makeSettings(overrides?: Partial<AttachmentsAutopilotSettings>):
 
 /**
  * In-memory fake vault for testing TwinManager.
+ *
+ * Defaults `attachmentFolderPath` to `"attachments"` to match the
+ * pre-0.7.0 default watched scope. Tests that care about other scopes
+ * can call `setAttachmentFolderPath()`.
  */
 export class FakeVault {
   private files = new Map<string, { file: TFile; content: string }>();
   private folders = new Set<string>();
+  private attachmentFolderPath: string | undefined = 'attachments';
+
+  setAttachmentFolderPath(path: string | undefined): void {
+    this.attachmentFolderPath = path;
+  }
+
+  getAttachmentFolderPath(): string | undefined {
+    return this.attachmentFolderPath;
+  }
 
   async create(path: string, content: string): Promise<TFile> {
     const file = makeTFile(path);

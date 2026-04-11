@@ -37,8 +37,6 @@ export default {
   'settings.twin-folder': 'Cartella dei gemelli',
   'settings.twin-folder.desc': 'Cartella dove vengono salvati i file di metadati gemelli. Lasciare vuoto per posizionarli accanto agli allegati.',
   'settings.twin-folder.placeholder': 'es. attachments/twins',
-  'settings.watched-folders': 'Cartelle monitorate',
-  'settings.watched-folders.desc': 'Monitorare gli allegati solo in queste cartelle (una per riga). Lasciare vuoto per monitorare l\'intero vault.',
   'settings.exclude-patterns': 'Modelli di esclusione',
   'settings.exclude-patterns.desc': 'Prefissi di percorso da escludere dalla creazione dei gemelli (uno per riga).',
   'settings.generate-previews': 'Genera anteprime',

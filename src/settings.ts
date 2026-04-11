@@ -5,7 +5,6 @@ import { t } from './i18n';
 export interface AttachmentsAutopilotSettings {
   syncOnStartup: boolean;
   twinFolder: string;
-  watchedFolders: string[];
   excludePatterns: string[];
   generatePreviews: boolean;
   previewFolder: string;
@@ -18,7 +17,6 @@ export interface AttachmentsAutopilotSettings {
 export const DEFAULT_SETTINGS: AttachmentsAutopilotSettings = {
   syncOnStartup: false,
   twinFolder: 'attachments/twins',
-  watchedFolders: ['attachments/'],
   excludePatterns: [],
   generatePreviews: true,
   previewFolder: 'attachments/twins/previews',
@@ -59,22 +57,6 @@ export class AttachmentsAutopilotSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.twinFolder)
           .onChange(async (value) => {
             this.plugin.settings.twinFolder = value.trim();
-            await this.plugin.saveSettings();
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName(t('settings.watched-folders'))
-      .setDesc(t('settings.watched-folders.desc'))
-      .addTextArea((area) =>
-        area
-          .setPlaceholder('attachments/\nuploads/')
-          .setValue(this.plugin.settings.watchedFolders.join('\n'))
-          .onChange(async (value) => {
-            this.plugin.settings.watchedFolders = value
-              .split('\n')
-              .map((s) => s.trim())
-              .filter((s) => s.length > 0);
             await this.plugin.saveSettings();
           }),
       );

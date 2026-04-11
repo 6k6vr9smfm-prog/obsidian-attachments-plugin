@@ -37,8 +37,6 @@ export default {
   'settings.twin-folder': 'Zwillingsordner',
   'settings.twin-folder.desc': 'Ordner für Zwillings-Metadatendateien. Leer lassen, um Zwillinge neben Anhängen zu platzieren.',
   'settings.twin-folder.placeholder': 'z.B. attachments/twins',
-  'settings.watched-folders': 'Überwachte Ordner',
-  'settings.watched-folders.desc': 'Nur Anhänge in diesen Ordnern überwachen (einer pro Zeile). Leer lassen für den gesamten Tresor.',
   'settings.exclude-patterns': 'Ausschlussmuster',
   'settings.exclude-patterns.desc': 'Pfadpräfixe, die von der Zwillingserstellung ausgeschlossen werden (eines pro Zeile).',
   'settings.generate-previews': 'Vorschauen generieren',

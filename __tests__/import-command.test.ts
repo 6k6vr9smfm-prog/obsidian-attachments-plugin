@@ -40,7 +40,6 @@ describe('importFiles', () => {
     vault = new FakeVault();
     const settings = makeSettings({
       twinFolder: 'attachments/twins',
-      watchedFolders: ['attachments/'],
       excludePatterns: [],
       generatePreviews: false,
     });

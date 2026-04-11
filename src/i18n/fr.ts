@@ -37,8 +37,6 @@ export default {
   'settings.twin-folder': 'Dossier des jumeaux',
   'settings.twin-folder.desc': 'Dossier de stockage des fichiers de métadonnées jumeaux. Laisser vide pour placer les jumeaux à côté des pièces jointes.',
   'settings.twin-folder.placeholder': 'ex. attachments/twins',
-  'settings.watched-folders': 'Dossiers surveillés',
-  'settings.watched-folders.desc': 'Surveiller les pièces jointes uniquement dans ces dossiers (un par ligne). Laisser vide pour surveiller tout le coffre.',
   'settings.exclude-patterns': 'Motifs d\'exclusion',
   'settings.exclude-patterns.desc': 'Préfixes de chemin à exclure de la création de jumeaux (un par ligne).',
   'settings.generate-previews': 'Générer les aperçus',

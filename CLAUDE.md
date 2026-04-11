@@ -53,15 +53,22 @@ Tests use Jest + ts-jest with manual Obsidian mocks at `__mocks__/obsidian.ts`. 
 
 Key design: `file-utils.ts` and `twin-format.ts` are pure functions (no Obsidian dependency). `twin-manager.ts` depends on the `VaultAdapter` interface, tested via `FakeVault`.
 
+## Watched scope
+
+The plugin derives its scope from Obsidian's native `Files and links → Default location for new attachments` setting (read via `vault.getConfig('attachmentFolderPath')`). `resolveWatchedScope()` in `file-utils.ts` maps the 4 possible shapes to a `WatchedScope`:
+
+- Absolute path (`attachments`, `assets/files`) → `{ mode: 'absolute', prefix: 'attachments/' }`.
+- `/`, empty, or any `./…` relative value → `{ mode: 'all' }`, meaning the plugin watches the entire vault (minus excluded folders, twin folder, and preview thumbnails).
+
 ## Twin Path Resolution
 
 ```
-attachmentPath:  attachments/invoices/bill.pdf
-watchedFolders:  ["attachments/"]
-twinFolder:      attachments/twins
+attachmentPath:          attachments/invoices/bill.pdf
+attachmentFolderPath:    attachments     → scope: { absolute, prefix: "attachments/" }
+twinFolder:              attachments/twins
 
-→ Strip watched prefix: invoices/bill.pdf
+→ Strip scope prefix: invoices/bill.pdf
 → Twin path: attachments/twins/invoices/bill.pdf.md
 ```
 
-When `twinFolder` is empty, twin goes next to the attachment: `attachments/invoices/bill.pdf.md`.
+Under `{ mode: 'all' }`, no prefix is stripped — the twin mirrors the full vault path under `twinFolder`. When `twinFolder` is empty, twins go next to the attachment.

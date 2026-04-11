@@ -37,8 +37,6 @@ export default {
   'settings.twin-folder': 'Carpeta de gemelos',
   'settings.twin-folder.desc': 'Carpeta donde se almacenan los archivos de metadatos gemelos. Dejar vacío para colocarlos junto a los adjuntos.',
   'settings.twin-folder.placeholder': 'ej. attachments/twins',
-  'settings.watched-folders': 'Carpetas vigiladas',
-  'settings.watched-folders.desc': 'Solo vigilar adjuntos en estas carpetas (una por línea). Dejar vacío para vigilar toda la bóveda.',
   'settings.exclude-patterns': 'Patrones de exclusión',
   'settings.exclude-patterns.desc': 'Prefijos de ruta a excluir de la creación de gemelos (uno por línea).',
   'settings.generate-previews': 'Generar vistas previas',

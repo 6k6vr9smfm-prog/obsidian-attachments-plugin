@@ -37,8 +37,6 @@ export default {
   'settings.twin-folder': 'Twin folder',
   'settings.twin-folder.desc': 'Folder where twin metadata files are stored. Leave empty to place twins next to attachments.',
   'settings.twin-folder.placeholder': 'e.g. attachments/twins',
-  'settings.watched-folders': 'Watched folders',
-  'settings.watched-folders.desc': 'Only watch for attachments in these folders (one per line). Leave empty to watch the entire vault.',
   'settings.exclude-patterns': 'Exclude patterns',
   'settings.exclude-patterns.desc': 'Path prefixes to exclude from twin creation (one per line).',
   'settings.generate-previews': 'Generate previews',

@@ -1,6 +1,7 @@
 import { TAbstractFile, TFile, TFolder, loadPdfJs } from 'obsidian';
 import { PREVIEW_SUFFIX } from './constants';
 import { AttachmentsAutopilotSettings } from './settings';
+import { stripScopePrefix, WatchedScope } from './file-utils';
 
 /**
  * Returns the preview frontmatter value for a given attachment.
@@ -12,12 +13,13 @@ export function getPreviewValue(
   attachmentPath: string,
   type: string,
   settings: AttachmentsAutopilotSettings,
+  scope: WatchedScope,
 ): string {
   if (type === 'image') {
     return `[[${attachmentPath}]]`;
   }
   if (type === 'pdf' || type === 'video' || type === 'audio' || type === 'other') {
-    return `[[${getPreviewThumbnailPath(attachmentPath, settings)}]]`;
+    return `[[${getPreviewThumbnailPath(attachmentPath, settings, scope)}]]`;
   }
   return '';
 }
@@ -25,22 +27,14 @@ export function getPreviewValue(
 export function getPreviewThumbnailPath(
   attachmentPath: string,
   settings: AttachmentsAutopilotSettings,
+  scope: WatchedScope,
 ): string {
   if (!settings.previewFolder) {
     return attachmentPath + PREVIEW_SUFFIX;
   }
 
-  const relativePath = stripWatchedFolderPrefix(attachmentPath, settings.watchedFolders);
+  const relativePath = stripScopePrefix(attachmentPath, scope);
   return settings.previewFolder + '/' + relativePath + PREVIEW_SUFFIX;
-}
-
-function stripWatchedFolderPrefix(path: string, watchedFolders: string[]): string {
-  for (const folder of watchedFolders) {
-    if (path.startsWith(folder)) {
-      return path.slice(folder.length);
-    }
-  }
-  return path;
 }
 
 export const PreviewType = {
@@ -65,11 +59,12 @@ export async function generatePreviewThumbnail(
   type: string,
   adapter: PreviewGeneratorAdapter,
   settings: AttachmentsAutopilotSettings,
+  scope: WatchedScope,
 ): Promise<boolean> {
   // Skip on platforms without DOM (e.g. Obsidian Mobile)
   if (typeof document === 'undefined') return false;
 
-  const thumbPath = getPreviewThumbnailPath(attachmentPath, settings);
+  const thumbPath = getPreviewThumbnailPath(attachmentPath, settings, scope);
 
   // Skip if thumbnail already exists
   if (adapter.getAbstractFileByPath(thumbPath)) return false;

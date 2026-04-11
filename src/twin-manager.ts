@@ -1,6 +1,14 @@
 import { TAbstractFile, TFile, TFolder } from 'obsidian';
 import { AttachmentsAutopilotSettings } from './settings';
-import { getTwinPath, getAttachmentPathFromTwin, isTwinFile, isPreviewThumbnail, shouldProcess, classifyType } from './file-utils';
+import {
+  getTwinPath,
+  isTwinFile,
+  isPreviewThumbnail,
+  shouldProcess,
+  classifyType,
+  resolveWatchedScope,
+  WatchedScope,
+} from './file-utils';
 import { buildTwinContent, mergeFrontmatter, parseFrontmatter, extractTemplateFrontmatter, TwinTemplate } from './twin-format';
 import { getPreviewValue, getPreviewThumbnailPath, PreviewType, generatePreviewThumbnail, PreviewGeneratorAdapter } from './preview-generator';
 
@@ -14,6 +22,11 @@ export interface VaultAdapter {
   getAbstractFileByPath(path: string): TAbstractFile | null;
   getFiles(): TFile[];
   createFolder(path: string): Promise<TFolder>;
+  /**
+   * Returns Obsidian's `attachmentFolderPath` config value (or equivalent
+   * from a test fake). Used to resolve the plugin's watched scope.
+   */
+  getAttachmentFolderPath(): string | undefined;
 }
 
 export type TemplaterRunner = (twinPath: string) => Promise<void>;
@@ -35,22 +48,33 @@ export class TwinManager {
     this.templaterRunner = runner;
   }
 
+  private resolveScope(): WatchedScope {
+    return resolveWatchedScope(this.vault.getAttachmentFolderPath());
+  }
+
   async createTwin(file: TFile): Promise<void> {
+    const scope = this.resolveScope();
     const ext = file.path.split('.').pop() || '';
     const type = classifyType(ext);
     let previewValue = '';
 
     if (this.settings.generatePreviews) {
-      previewValue = getPreviewValue(file.path, type, this.settings);
+      previewValue = getPreviewValue(file.path, type, this.settings, scope);
 
       // Generate thumbnail if needed and adapter is available
       if (PreviewType.needsGeneration(type) && this.previewAdapter) {
-        await generatePreviewThumbnail(file.path, type, this.previewAdapter, this.settings);
+        await generatePreviewThumbnail(
+          file.path,
+          type,
+          this.previewAdapter,
+          this.settings,
+          scope,
+        );
       }
     }
 
     const template = await this.loadTemplate();
-    const twinPath = getTwinPath(file.path, this.settings);
+    const twinPath = getTwinPath(file.path, this.settings, scope);
     const content = buildTwinContent(file.path, file.stat, this.settings, previewValue, template);
 
     await this.ensureParentFolder(twinPath);
@@ -75,7 +99,8 @@ export class TwinManager {
   }
 
   async deleteTwinByPath(attachmentPath: string): Promise<void> {
-    const twinPath = getTwinPath(attachmentPath, this.settings);
+    const scope = this.resolveScope();
+    const twinPath = getTwinPath(attachmentPath, this.settings, scope);
     const twin = this.vault.getAbstractFileByPath(twinPath);
     if (twin instanceof TFile) {
       await this.vault.delete(twin);
@@ -88,7 +113,7 @@ export class TwinManager {
       const ext = attachmentPath.split('.').pop() || '';
       const type = classifyType(ext);
       if (PreviewType.needsGeneration(type)) {
-        const previewPath = getPreviewThumbnailPath(attachmentPath, this.settings);
+        const previewPath = getPreviewThumbnailPath(attachmentPath, this.settings, scope);
         const preview = this.vault.getAbstractFileByPath(previewPath);
         if (preview instanceof TFile) {
           try {
@@ -102,15 +127,20 @@ export class TwinManager {
   }
 
   async renameTwin(oldPath: string, newPath: string): Promise<void> {
-    const oldTwinPath = getTwinPath(oldPath, this.settings);
-    const newTwinPath = getTwinPath(newPath, this.settings);
+    const scope = this.resolveScope();
+    const oldTwinPath = getTwinPath(oldPath, this.settings, scope);
+    const newTwinPath = getTwinPath(newPath, this.settings, scope);
 
     const twin = this.vault.getAbstractFileByPath(oldTwinPath);
     if (!twin || !(twin instanceof TFile)) return;
 
     // Compute preview paths once if previews are enabled
-    const oldPreviewPath = this.settings.generatePreviews ? getPreviewThumbnailPath(oldPath, this.settings) : '';
-    const newPreviewPath = this.settings.generatePreviews ? getPreviewThumbnailPath(newPath, this.settings) : '';
+    const oldPreviewPath = this.settings.generatePreviews
+      ? getPreviewThumbnailPath(oldPath, this.settings, scope)
+      : '';
+    const newPreviewPath = this.settings.generatePreviews
+      ? getPreviewThumbnailPath(newPath, this.settings, scope)
+      : '';
 
     // Rename preview file if it exists
     if (oldPreviewPath) {
@@ -143,13 +173,14 @@ export class TwinManager {
   }
 
   async syncAll(): Promise<{ created: number; skipped: number }> {
+    const scope = this.resolveScope();
     let created = 0;
     let skipped = 0;
 
     for (const file of this.vault.getFiles()) {
-      if (!shouldProcess(file, this.settings)) continue;
+      if (!shouldProcess(file, this.settings, scope)) continue;
 
-      const twinPath = getTwinPath(file.path, this.settings);
+      const twinPath = getTwinPath(file.path, this.settings, scope);
       if (this.vault.getAbstractFileByPath(twinPath)) {
         skipped++;
         continue;
@@ -190,6 +221,7 @@ export class TwinManager {
     // than by path prefix. The UI mutates settings.twinFolder before invoking
     // this command, so comparing against the current setting would miss the
     // real previous location entirely (T2.3 bug).
+    const scope = this.resolveScope();
     let count = 0;
     const scopedSettings = { ...this.settings, twinFolder: newFolder };
     const candidates = this.vault.getFiles().filter((f) => f.path.endsWith('.md'));
@@ -203,7 +235,7 @@ export class TwinManager {
       const attachmentPath = raw.replace(/^\[\[/, '').replace(/\]\]$/, '').trim();
       if (!attachmentPath) continue;
 
-      const desiredPath = getTwinPath(attachmentPath, scopedSettings);
+      const desiredPath = getTwinPath(attachmentPath, scopedSettings, scope);
       if (file.path === desiredPath) continue;
 
       await this.ensureParentFolder(desiredPath);
@@ -228,27 +260,37 @@ export class TwinManager {
   }
 
   async generateMissingPreviews(): Promise<number> {
+    // Read the canonical `attachment:` frontmatter key instead of inverting
+    // twin paths — this is resilient to runtime scope changes and to twins
+    // that may have been created under a different layout in the past.
+    const scope = this.resolveScope();
     let count = 0;
     for (const file of this.vault.getFiles()) {
       if (!isTwinFile(file.path, this.settings)) continue;
 
-      const attachmentPath = getAttachmentPathFromTwin(file.path, this.settings);
+      const content = await this.vault.read(file);
+      const { data } = parseFrontmatter(content);
+      const rawAttachment = data['attachment'];
+      if (typeof rawAttachment !== 'string' || !rawAttachment) continue;
+
+      const attachmentPath = rawAttachment
+        .replace(/^\[\[/, '')
+        .replace(/\]\]$/, '')
+        .trim();
       if (!attachmentPath) continue;
 
       const ext = attachmentPath.split('.').pop() || '';
       const type = classifyType(ext);
-      const expectedPreview = getPreviewValue(attachmentPath, type, this.settings);
+      const expectedPreview = getPreviewValue(attachmentPath, type, this.settings, scope);
       if (!expectedPreview) continue;
 
-      const content = await this.vault.read(file);
-      const { data } = parseFrontmatter(content);
       const currentPreview = (data['attachment-preview'] || '') as string;
 
       let needsUpdate = currentPreview !== expectedPreview;
 
       // Even if the value is correct, the thumbnail file itself may be missing
       if (!needsUpdate && PreviewType.needsGeneration(type)) {
-        const thumbPath = getPreviewThumbnailPath(attachmentPath, this.settings);
+        const thumbPath = getPreviewThumbnailPath(attachmentPath, this.settings, scope);
         if (!this.vault.getAbstractFileByPath(thumbPath)) {
           needsUpdate = true;
         }
@@ -258,7 +300,13 @@ export class TwinManager {
 
       // Generate thumbnail if needed
       if (PreviewType.needsGeneration(type) && this.previewAdapter) {
-        await generatePreviewThumbnail(attachmentPath, type, this.previewAdapter, this.settings);
+        await generatePreviewThumbnail(
+          attachmentPath,
+          type,
+          this.previewAdapter,
+          this.settings,
+          scope,
+        );
       }
 
       // Atomically update the twin's frontmatter (replace existing line, or insert if absent).

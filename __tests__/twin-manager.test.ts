@@ -12,7 +12,6 @@ describe('TwinManager', () => {
     vault = new FakeVault();
     settings = makeSettings({
       twinFolder: 'attachments/twins',
-      watchedFolders: ['attachments/'],
       excludePatterns: [],
       generatePreviews: false,
     });
@@ -103,7 +102,6 @@ User notes about this photo.`);
     it('deletes the orphan preview thumbnail when the attachment is removed (pdf)', async () => {
       settings = makeSettings({
         twinFolder: 'attachments/twins',
-        watchedFolders: ['attachments/'],
         generatePreviews: true,
         previewFolder: 'attachments/twins/previews',
       });
@@ -121,7 +119,6 @@ User notes about this photo.`);
     it('does not try to delete a preview for image attachments', async () => {
       settings = makeSettings({
         twinFolder: 'attachments/twins',
-        watchedFolders: ['attachments/'],
         generatePreviews: true,
         previewFolder: 'attachments/twins/previews',
       });
