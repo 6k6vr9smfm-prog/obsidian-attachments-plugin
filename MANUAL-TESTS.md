@@ -49,9 +49,9 @@ Before each section, start from a known baseline:
 - [ ] Inside the twin, all references to the old path are updated to the new path.
 - [ ] Preview thumbnail (if any) renames in lockstep.
 
-### 1.5 Move attachment across watched folders
-- [ ] With two watched folders configured, move a file from one to the other.
-- [ ] Twin path updates to reflect the new location.
+### 1.5 Move attachment within watched scope
+- [ ] Move `attachments/photo.png` to `attachments/archive/photo.png`.
+- [ ] Twin path updates to reflect the new subfolder location.
 
 ### 1.6 Move attachment into a non-watched folder
 - [ ] Move `attachments/photo.png` to `unwatched/photo.png`.
@@ -80,7 +80,7 @@ Before each section, start from a known baseline:
 
 ### 2.1 Sync all attachment twins
 - [ ] With several existing attachments lacking twins, run **Sync all attachment twins**.
-- [ ] Notice reports count of created / skipped.
+- [ ] Notice reports count of created / updated.
 - [ ] Every eligible attachment now has a twin.
 
 ### 2.2 Generate missing previews
@@ -119,8 +119,9 @@ See section 4 for the full cross-platform import matrix.
 ## 3. Settings
 
 ### 3.1 Sync on startup toggle
-- [ ] Enable, quit Obsidian, add a new attachment externally, relaunch.
-- [ ] Startup sync runs and a notice reports created/skipped counts.
+- [ ] Enable, quit Obsidian (`Cmd+Q`), add a new attachment externally, relaunch.
+- [ ] Startup sync runs and a notice reports created/updated counts.
+- [ ] Note: `Cmd+R` reload does **not** trigger startup sync — this is expected (requires cold start).
 
 ### 3.2 Twin folder — custom path
 - [ ] Set **Twin folder** to `meta/twins`.
@@ -130,18 +131,21 @@ See section 4 for the full cross-platform import matrix.
 - [ ] Clear **Twin folder**.
 - [ ] Create `attachments/photo.png` → twin appears at `attachments/photo.png.md`.
 
-### 3.4 Watched folders
-- [ ] Configure two watched folders, e.g. `attachments/` and `uploads/`.
-- [ ] Files in either folder get twins; files elsewhere do not.
+### 3.4 Watched scope (derived from Obsidian's native setting)
+- [ ] Set **Settings → Files and links → Default location for new attachments** to `attachments`.
+- [ ] Files in `attachments/` get twins; files elsewhere do not.
+- [ ] Change the setting to `/` (vault root) → plugin watches the entire vault (all non-md files get twins).
 
 ### 3.5 Exclude patterns
 - [ ] Add `attachments/private` as an exclusion.
 - [ ] Files under that prefix are skipped during reactive and sync-all flows.
 
-### 3.6 Custom frontmatter fields
-- [ ] Add `project: my-project` and `status: unreviewed` to **Custom fields**.
-- [ ] Create a new attachment → twin contains both fields.
-- [ ] Existing twins gain these fields on re-sync.
+### 3.6 Custom frontmatter fields (T3.6 regression)
+- [ ] Create several attachments so their twins exist (without custom fields).
+- [ ] Add `project: my-project` and `status: unreviewed` to **Custom fields** in settings.
+- [ ] Create a **new** attachment → twin contains both fields.
+- [ ] Run **Sync all attachment twins** → notice reports N updated.
+- [ ] Open a **pre-existing** twin → it now contains `project` and `status` keys (T3.6 fix: syncAll re-merges existing twins).
 
 ### 3.7 Templater integration
 - [ ] Install Templater.
@@ -197,11 +201,11 @@ See section 4 for the full cross-platform import matrix.
 - [ ] With Obsidian's attachment folder set to a path **inside** one of the plugin's watched folders (default case), import a file.
 - [ ] Twin is created exactly once — no duplicate work, no console errors. (The `processing` Set in `main.ts` dedupes the explicit `createTwin` call against the `vault.on('create')` listener.)
 
-### 4.7 Desktop — import outside any watched folder
-- [ ] Temporarily set **Default location for new attachments** to a folder outside `watchedFolders` (e.g. `imports/`).
+### 4.7 Desktop — import outside watched scope
+- [ ] Temporarily set **Default location for new attachments** to a folder outside the watched scope (e.g. `imports/`).
 - [ ] Run the import command.
 - [ ] File lands in `imports/`; twin is still created via the explicit call.
-- [ ] The `vault.on('create')` listener correctly skips this file (it's outside watched folders), so only our explicit call runs.
+- [ ] The `vault.on('create')` listener correctly skips this file (it's outside the watched scope), so only our explicit call runs.
 
 ### 4.8 Desktop — partial failure
 - [ ] Simulate failure: import a file while the attachment folder path is invalid (e.g. contains characters the OS rejects — platform-dependent; skip if hard to reproduce).
@@ -209,7 +213,26 @@ See section 4 for the full cross-platform import matrix.
 - [ ] A per-file error notice appears for the failing file.
 - [ ] Developer console logs `Attachments Autopilot: import failed` with details.
 
-### 4.9 iOS — Files app / iCloud Drive
+### 4.9 Desktop — insert links modal (active note open)
+- [ ] Open a markdown note and place the cursor in the body.
+- [ ] Run **Import files from device** and pick 2 files.
+- [ ] After import, a modal appears: "Insert links into active note?"
+- [ ] Click **Insert** → two `![[path]]` wiki-links are inserted at the cursor position.
+- [ ] The links render correctly in reading view.
+
+### 4.10 Desktop — insert links modal (no active note)
+- [ ] Close all tabs (or switch to a non-markdown view like Settings).
+- [ ] Run **Import files from device** and pick a file.
+- [ ] Files are imported, twins created, **no modal appears**.
+- [ ] Notice reports the import count normally.
+
+### 4.11 Desktop — insert links modal dismissed
+- [ ] Open a markdown note.
+- [ ] Run the import command, pick a file.
+- [ ] When the modal appears, click **Skip** (or press Escape).
+- [ ] No links are inserted. The note is unchanged.
+
+### 4.12 iOS — Files app / iCloud Drive
 - [ ] Run the import command on Obsidian Mobile (iOS).
 - [ ] The iOS document picker opens.
 - [ ] Navigate to iCloud Drive, select a PDF.
@@ -218,29 +241,29 @@ See section 4 for the full cross-platform import matrix.
 - [ ] **Expected**: no PDF thumbnail is generated — this is an existing mobile limitation, not a regression.
 - [ ] Notice: `Imported 1 file(s).`
 
-### 4.10 iOS — Photos / Camera Roll
+### 4.13 iOS — Photos / Camera Roll
 - [ ] Run the import command.
 - [ ] Switch to **Photos** in the picker and select an image.
 - [ ] Image lands in the attachment folder.
 - [ ] Twin has `attachment-type: image` and `attachment-preview` references the image itself.
 - [ ] The image displays in the twin's preview (images always work, even on mobile).
 
-### 4.11 iOS — multiple files
+### 4.14 iOS — multiple files
 - [ ] Select 3+ files in a single picker session.
 - [ ] All are imported, all get twins.
 - [ ] No mobile console errors (view via Obsidian Mobile's "show debug console" developer toggle, if enabled).
 
-### 4.12 iOS — picker cancelled
+### 4.15 iOS — picker cancelled
 - [ ] Open the picker, cancel without selecting.
 - [ ] No notice, no error.
 
-### 4.13 Android — Storage Access Framework picker
+### 4.16 Android — Storage Access Framework picker
 - [ ] Run the import command on Obsidian Mobile (Android).
 - [ ] Android SAF picker opens.
 - [ ] Select a file from **Downloads** or **Drive**.
 - [ ] File is copied into the attachment folder and twin is created.
 
-### 4.14 Android — multiple files from different sources
+### 4.17 Android — multiple files from different sources
 - [ ] Select files from both Downloads and Drive in one session (if SAF allows it).
 - [ ] All are imported.
 
@@ -258,6 +281,12 @@ See section 4 for the full cross-platform import matrix.
 - [ ] Thumbnail appears in the preview folder.
 - [ ] Twin's `attachment-preview` points to it.
 - [ ] The thumbnail is a rasterized first page.
+
+### 5.2b PDF in subfolder — thumbnail generated on first create (reactive race fix)
+- [ ] Drop `attachments/invoices/2024/report.pdf` (nested subfolder).
+- [ ] Twin appears at `attachments/twins/invoices/2024/report.pdf.md`.
+- [ ] Thumbnail `.preview.png` is generated on the **first** reactive create — no need to run "Generate missing previews" afterwards.
+- [ ] If this fails, it's a regression of the 0.6.9 fix (TFile threading into preview generator).
 
 ### 5.3 Video — frame-at-1s (desktop only)
 - [ ] Drop `clip.mp4`.
