@@ -41,6 +41,29 @@ export class Notice {
   constructor(_message: string, _timeout?: number) {}
 }
 
+export class Modal {
+  app: any;
+  contentEl: any;
+  constructor(app: any) {
+    this.app = app;
+    this.contentEl = {
+      createEl: () => ({ addEventListener: () => {} }),
+      createDiv: () => ({ createEl: () => ({ addEventListener: () => {} }) }),
+    };
+  }
+  open(): void {}
+  close(): void {}
+  onOpen(): void {}
+  onClose(): void {}
+}
+
+export class MarkdownView {
+  editor: any;
+  constructor() {
+    this.editor = { replaceSelection: () => {} };
+  }
+}
+
 export class Plugin {
   app: any;
   manifest: any;

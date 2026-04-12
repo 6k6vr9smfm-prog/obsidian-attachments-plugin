@@ -1,4 +1,4 @@
-import { Plugin, TFile, TAbstractFile, Notice, Menu, MenuItem, Vault } from 'obsidian';
+import { App, Modal, Plugin, TFile, TAbstractFile, Notice, Menu, MenuItem, MarkdownView, Vault } from 'obsidian';
 import { AttachmentsAutopilotSettings, AttachmentsAutopilotSettingTab, DEFAULT_SETTINGS } from './settings';
 import { TwinManager, VaultAdapter } from './twin-manager';
 import { shouldProcess, shouldProcessPath, resolveWatchedScope } from './file-utils';
@@ -16,6 +16,47 @@ function readAttachmentFolderPath(vault: Vault): string | undefined {
   if (typeof getConfig !== 'function') return undefined;
   const value = getConfig.call(vault, 'attachmentFolderPath');
   return typeof value === 'string' ? value : undefined;
+}
+
+class InsertLinksModal extends Modal {
+  private resolved = false;
+  private resolve!: (insert: boolean) => void;
+  private count: number;
+
+  constructor(app: App, count: number) {
+    super(app);
+    this.count = count;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.createEl('h3', { text: t('modal.insert-links-title') });
+    contentEl.createEl('p', { text: t('modal.insert-links-desc')(this.count) });
+
+    const buttonRow = contentEl.createDiv({ cls: 'modal-button-container' });
+    buttonRow.createEl('button', { text: t('modal.insert-links-yes'), cls: 'mod-cta' })
+      .addEventListener('click', () => this.finish(true));
+    buttonRow.createEl('button', { text: t('modal.insert-links-no') })
+      .addEventListener('click', () => this.finish(false));
+  }
+
+  onClose() {
+    this.finish(false);
+  }
+
+  private finish(insert: boolean) {
+    if (this.resolved) return;
+    this.resolved = true;
+    this.resolve(insert);
+    this.close();
+  }
+
+  prompt(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.resolve = resolve;
+      this.open();
+    });
+  }
 }
 
 export default class AttachmentsAutopilotPlugin extends Plugin {
@@ -157,6 +198,19 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
         for (const fail of result.failed) {
           new Notice(t('notice.import-failed')(fail.name, fail.error));
           console.error('Attachments Autopilot: import failed', fail);
+        }
+
+        // Offer to insert wiki-links at the cursor if there's an active note
+        if (result.imported.length > 0) {
+          const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+          if (view) {
+            const insert = await new InsertLinksModal(this.app, result.imported.length).prompt();
+            if (insert) {
+              const editor = view.editor;
+              const links = result.imported.map(f => `![[${f.path}]]`).join('\n');
+              editor.replaceSelection(links);
+            }
+          }
         }
       },
     });

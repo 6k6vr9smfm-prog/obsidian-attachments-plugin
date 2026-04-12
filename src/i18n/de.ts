@@ -30,6 +30,11 @@ export default {
       : `${imported} Datei(en) importiert.`,
   'notice.import-failed': (name: string, error: string) =>
     `Import von ${name} fehlgeschlagen: ${error}`,
+  'modal.insert-links-title': 'Links in aktive Notiz einfügen?',
+  'modal.insert-links-desc': (count: number) =>
+    `${count} Wiki-Link(s) an der Cursorposition in der aktiven Notiz einfügen.`,
+  'modal.insert-links-yes': 'Einfügen',
+  'modal.insert-links-no': 'Überspringen',
 
   // Settings
   'settings.sync-on-startup': 'Beim Start synchronisieren',

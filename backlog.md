@@ -52,7 +52,6 @@
 
 ### Deferred features
 - [ ] **Insertar wiki-links después del import.** Toggle opcional para añadir `![[file]]` en la nota activa al cursor tras ejecutar el comando de import.
-- [ ] **Drag-and-drop import.** Ruta UX paralela al comando — soltar archivos desde el OS sobre la ventana de Obsidian.
 
 ### Validación pendiente (MANUAL-TESTS.md sección 4)
 - [ ] T4.1–T4.8 desktop: single, multi, collision, cancel, source-path activo, dentro/fuera de watched folders, partial failure.

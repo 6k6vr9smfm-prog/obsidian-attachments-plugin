@@ -30,6 +30,11 @@ export default {
       : `${imported} file importato/i.`,
   'notice.import-failed': (name: string, error: string) =>
     `Impossibile importare ${name}: ${error}`,
+  'modal.insert-links-title': 'Inserire i link nella nota attiva?',
+  'modal.insert-links-desc': (count: number) =>
+    `Inserire ${count} wiki-link alla posizione del cursore nella nota attiva.`,
+  'modal.insert-links-yes': 'Inserisci',
+  'modal.insert-links-no': 'Salta',
 
   // Settings
   'settings.sync-on-startup': 'Sincronizza all\'avvio',
