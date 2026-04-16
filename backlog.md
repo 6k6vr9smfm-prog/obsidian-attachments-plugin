@@ -42,13 +42,11 @@
 - [X] 0.6.8 — refactor `generateMissingPreviews` to discover twins via the canonical `attachment:` frontmatter key, so it's resilient to runtime scope changes (same pattern as the 0.6.7 `moveTwinsToFolder` fix)
 - [X] 0.6.9 — fix T3.6 for real: `syncAll` now always runs the read-modify-write path instead of early-returning on existing twins, so newly-added `customFields` propagate to pre-existing twins. Notice shape changed from `{ created, skipped }` to `{ created, updated }`. The 0.6.7 `mergeFrontmatter` fix was correct but unreachable.
 - [X] 0.6.9 — fix reactive PDF preview race: `generatePreviewThumbnail` now takes the `TFile` from the create event directly instead of re-resolving via `getAbstractFileByPath`, which could return null before Obsidian finished indexing the new file (visible on PDFs created in subfolders).
+- [X] 0.7.1 — drop the `typeof document === 'undefined'` gate in `generatePreviewThumbnail`. The check was dead code (Obsidian mobile webviews define `document`), so mobile was already attempting generation; the existing try/catch absorbs platform failures. Mobile now attempts PDF/video/audio/other thumbnails alongside desktop. MANUAL-TESTS §5.6 updated: user to empirically confirm which types render on iOS/Android.
 
 ---
 
 ## Open
-
-### Investigations
-- [ ] **Levantar el gate móvil de preview generation.** El check `typeof document === 'undefined'` en `preview-generator.ts:70` puede ser excesivamente conservador — WKWebView sí tiene `document`. Verificar empíricamente en iOS si PDF.js + canvas funcionan; si sí, eliminar el gate y dar previews móviles "gratis". External APIs descartados (privacidad, coste, review).
 
 ### Deferred features
 - [ ] **Insertar wiki-links después del import.** Toggle opcional para añadir `![[file]]` en la nota activa al cursor tras ejecutar el comando de import.

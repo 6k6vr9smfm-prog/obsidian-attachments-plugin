@@ -1,7 +1,7 @@
 {
   "id": "attachments-autopilot",
   "name": "Attachments Autopilot",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "minAppVersion": "1.7.2",
   "description": "Automatically create queryable twin markdown files for your non-markdown attachments, enabling management via Obsidian Bases.",
   "author": "Miguel Baquero",

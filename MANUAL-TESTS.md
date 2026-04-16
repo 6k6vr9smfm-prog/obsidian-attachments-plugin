@@ -302,10 +302,14 @@ See section 4 for the full cross-platform import matrix.
 - [ ] Drop `archive.zip`.
 - [ ] Twin is created with a color-fallback preview.
 
-### 5.6 Mobile — DOM-gated types are skipped (not regressed)
-- [ ] On iOS / Android, import a PDF / video / audio / ZIP.
-- [ ] Twin is created without an `attachment-preview` thumbnail.
-- [ ] No errors in the mobile debug console.
+### 5.6 Mobile — preview generation (0.7.1 enablement)
+Previously the plugin skipped all thumbnail generation on mobile. As of 0.7.1 the DOM guard is gone and mobile runs the same code path as desktop. The try/catch around generation still absorbs platform failures.
+- [ ] On iOS, import a PDF. Expected: thumbnail file is created under the preview folder and appears in the twin's `attachment-preview`.
+- [ ] On iOS, import an MP4. Expected: either a real video frame thumbnail or a color-placeholder fallback (never a broken link).
+- [ ] On iOS, import an MP3. Expected: ♫ color-placeholder thumbnail.
+- [ ] On iOS, import a ZIP. Expected: extension-labeled color-placeholder.
+- [ ] Repeat on Android.
+- [ ] For any failing type on a given platform, capture the mobile debug console error (prefix `Attachments Autopilot: failed to generate preview for …`) and file an issue. Failures should be logged, not silent, and should never crash the twin creation.
 
 ---
 

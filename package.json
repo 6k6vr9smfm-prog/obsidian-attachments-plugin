@@ -1,6 +1,6 @@
 {
   "name": "obsidian-attachments-autopilot",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Automatically create queryable twin markdown files for non-markdown attachments, enabling management via Obsidian Bases",
   "main": "main.js",
   "scripts": {
@@ -16,7 +16,7 @@
     "@types/jest": "^29.5.12",
     "@types/node": "^22.0.0",
     "builtin-modules": "^4.0.0",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.25.12",
     "jest": "^29.7.0",
     "obsidian": "latest",
     "ts-jest": "^29.1.2",

@@ -52,7 +52,10 @@ export interface PreviewGeneratorAdapter {
 
 /**
  * Generates preview thumbnails for attachments that need them.
- * Must run inside Obsidian (requires DOM, canvas, loadPdfJs).
+ * Requires DOM + canvas; Obsidian mobile (iOS WKWebView, Android
+ * WebView) satisfies this, so the code runs on every platform. Any
+ * platform-specific failure (e.g. a video codec the mobile webview
+ * can't decode) is caught by the try/catch below and logged.
  *
  * Takes the `TFile` directly (not a path) because on the reactive
  * create-event path, `adapter.getAbstractFileByPath(path)` can return
@@ -68,9 +71,6 @@ export async function generatePreviewThumbnail(
   settings: AttachmentsAutopilotSettings,
   scope: WatchedScope,
 ): Promise<boolean> {
-  // Skip on platforms without DOM (e.g. Obsidian Mobile)
-  if (typeof document === 'undefined') return false;
-
   const thumbPath = getPreviewThumbnailPath(file.path, settings, scope);
 
   // Skip if thumbnail already exists

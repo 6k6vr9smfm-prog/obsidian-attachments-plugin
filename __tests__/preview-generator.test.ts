@@ -70,31 +70,30 @@ describe('getPreviewThumbnailPath', () => {
   });
 });
 
-describe('generatePreviewThumbnail — mobile guard', () => {
-  it('returns false when document is undefined (mobile)', () => {
-    const origDocument = global.document;
-    // @ts-ignore — simulate mobile environment
-    delete global.document;
+describe('generatePreviewThumbnail — failure resilience', () => {
+  it('swallows readBinary errors and returns false without throwing', async () => {
+    const settings = makeSettings({ previewFolder: 'attachments/twins/previews' });
+    const adapter = {
+      readBinary: jest.fn().mockRejectedValue(new Error('boom')),
+      createBinary: jest.fn(),
+      getAbstractFileByPath: jest.fn().mockReturnValue(null),
+      createFolder: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     try {
-      const settings = makeSettings({ previewFolder: 'attachments/twins/previews' });
-      const adapter = {
-        readBinary: jest.fn(),
-        createBinary: jest.fn(),
-        getAbstractFileByPath: jest.fn().mockReturnValue(null),
-        createFolder: jest.fn(),
-      };
-      return generatePreviewThumbnail(
+      const result = await generatePreviewThumbnail(
         makeTFile('attachments/doc.pdf'),
         'pdf',
         adapter,
         settings,
         SCOPE_ATTACHMENTS,
-      ).then((result) => {
-        expect(result).toBe(false);
-        expect(adapter.readBinary).not.toHaveBeenCalled();
-      });
+      );
+      expect(result).toBe(false);
+      expect(adapter.createBinary).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalled();
     } finally {
-      global.document = origDocument;
+      errorSpy.mockRestore();
     }
   });
 });
