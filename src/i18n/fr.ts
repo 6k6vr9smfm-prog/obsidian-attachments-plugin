@@ -28,8 +28,10 @@ export default {
     failed > 0
       ? `${imported} fichier(s) importé(s), ${failed} échoué(s).`
       : `${imported} fichier(s) importé(s).`,
-  'notice.import-failed': (name: string, error: string) =>
-    `Échec de l'importation de ${name} : ${error}`,
+  'notice.preview-failed-single': (name: string) =>
+    `Impossible de générer l'aperçu de ${name}.`,
+  'notice.preview-failed-multi': (count: number) =>
+    `Impossible de générer les aperçus de ${count} fichier(s).`,
   'modal.insert-links-title': 'Insérer les liens dans la note active ?',
   'modal.insert-links-desc': (count: number) =>
     `Insérer ${count} wiki-lien(s) à la position du curseur dans la note active.`,

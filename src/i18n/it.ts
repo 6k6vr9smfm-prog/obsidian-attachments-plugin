@@ -28,8 +28,10 @@ export default {
     failed > 0
       ? `${imported} file importato/i, ${failed} fallito/i.`
       : `${imported} file importato/i.`,
-  'notice.import-failed': (name: string, error: string) =>
-    `Impossibile importare ${name}: ${error}`,
+  'notice.preview-failed-single': (name: string) =>
+    `Impossibile generare l'anteprima di ${name}.`,
+  'notice.preview-failed-multi': (count: number) =>
+    `Impossibile generare le anteprime di ${count} file.`,
   'modal.insert-links-title': 'Inserire i link nella nota attiva?',
   'modal.insert-links-desc': (count: number) =>
     `Inserire ${count} wiki-link alla posizione del cursore nella nota attiva.`,

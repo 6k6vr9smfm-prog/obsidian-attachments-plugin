@@ -28,8 +28,10 @@ export default {
     failed > 0
       ? `${imported} archivo(s) importado(s), ${failed} fallido(s).`
       : `${imported} archivo(s) importado(s).`,
-  'notice.import-failed': (name: string, error: string) =>
-    `Error al importar ${name}: ${error}`,
+  'notice.preview-failed-single': (name: string) =>
+    `No se pudo generar la vista previa de ${name}.`,
+  'notice.preview-failed-multi': (count: number) =>
+    `No se pudieron generar las vistas previas de ${count} archivo(s).`,
   'modal.insert-links-title': 'Insertar enlaces en la nota activa?',
   'modal.insert-links-desc': (count: number) =>
     `Insertar ${count} wiki-link(s) en la posición del cursor en la nota activa.`,

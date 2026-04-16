@@ -1,4 +1,4 @@
-import { Notice, TAbstractFile, TFile, TFolder, loadPdfJs } from 'obsidian';
+import { TAbstractFile, TFile, TFolder, loadPdfJs } from 'obsidian';
 import { PREVIEW_SUFFIX } from './constants';
 import { AttachmentsAutopilotSettings } from './settings';
 import { stripScopePrefix, WatchedScope } from './file-utils';
@@ -48,6 +48,12 @@ export interface PreviewGeneratorAdapter {
   createBinary(path: string, data: ArrayBuffer): Promise<TFile>;
   getAbstractFileByPath(path: string): TAbstractFile | null;
   createFolder(path: string): Promise<TFolder>;
+  /**
+   * Called once per failed preview generation. The caller is expected to
+   * aggregate failures (e.g. debounced summary Notice) — this module only
+   * reports; it does not render UI itself.
+   */
+  onError?(path: string): void;
 }
 
 /**
@@ -103,11 +109,8 @@ export async function generatePreviewThumbnail(
       return await generateGenericPreview(file.path, thumbPath, adapter);
     }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
     console.error(`Attachments Autopilot: failed to generate preview for ${file.path}`, e);
-    // Diagnostic surface for mobile where the debug console is hard to reach.
-    // Short enough to fit in a mobile toast; full stack stays in the console.
-    new Notice(`Preview failed (${type}) ${file.name}: ${msg}`, 8000);
+    adapter.onError?.(file.path);
   }
 
   return false;

@@ -28,8 +28,10 @@ export default {
     failed > 0
       ? `${imported} Datei(en) importiert, ${failed} fehlgeschlagen.`
       : `${imported} Datei(en) importiert.`,
-  'notice.import-failed': (name: string, error: string) =>
-    `Import von ${name} fehlgeschlagen: ${error}`,
+  'notice.preview-failed-single': (name: string) =>
+    `Vorschau für ${name} konnte nicht erstellt werden.`,
+  'notice.preview-failed-multi': (count: number) =>
+    `Vorschauen für ${count} Datei(en) konnten nicht erstellt werden.`,
   'modal.insert-links-title': 'Links in aktive Notiz einfügen?',
   'modal.insert-links-desc': (count: number) =>
     `${count} Wiki-Link(s) an der Cursorposition in der aktiven Notiz einfügen.`,

@@ -65,8 +65,35 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
   private vaultAdapter!: VaultAdapter;
   private processing = new Set<string>();
 
+  // Debounced aggregator for preview-generation failures. Preview errors
+  // arrive per-file and can burst (e.g. import of several PDFs), so we
+  // collect them in a 1.5s window and flush a single summary Notice
+  // rather than spamming one per failure.
+  private previewFailures: string[] = [];
+  private previewFailuresTimer: number | null = null;
+
   private currentScope() {
     return resolveWatchedScope(readAttachmentFolderPath(this.app.vault));
+  }
+
+  private recordPreviewFailure(path: string) {
+    const name = path.split('/').pop() || path;
+    this.previewFailures.push(name);
+    if (this.previewFailuresTimer !== null) {
+      window.clearTimeout(this.previewFailuresTimer);
+    }
+    this.previewFailuresTimer = window.setTimeout(() => this.flushPreviewFailures(), 1500);
+  }
+
+  private flushPreviewFailures() {
+    this.previewFailuresTimer = null;
+    if (this.previewFailures.length === 0) return;
+    const count = this.previewFailures.length;
+    const msg = count === 1
+      ? t('notice.preview-failed-single')(this.previewFailures[0])
+      : t('notice.preview-failed-multi')(count);
+    new Notice(msg, 6000);
+    this.previewFailures = [];
   }
 
   async onload() {
@@ -91,6 +118,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       createBinary: (path: string, data: ArrayBuffer) => this.app.vault.createBinary(path, data),
       getAbstractFileByPath: (path: string) => this.app.vault.getAbstractFileByPath(path),
       createFolder: (path: string) => this.app.vault.createFolder(path),
+      onError: (path: string) => this.recordPreviewFailure(path),
     });
 
     // Wire Templater integration if enabled
@@ -202,7 +230,6 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
         const result = await importFiles(picked, adapter, this.twinManager);
         new Notice(t('notice.imported')(result.imported.length, result.failed.length));
         for (const fail of result.failed) {
-          new Notice(t('notice.import-failed')(fail.name, fail.error));
           console.error('Attachments Autopilot: import failed', fail);
         }
 

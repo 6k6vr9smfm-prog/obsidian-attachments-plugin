@@ -28,8 +28,10 @@ export default {
     failed > 0
       ? `Imported ${imported} file(s), ${failed} failed.`
       : `Imported ${imported} file(s).`,
-  'notice.import-failed': (name: string, error: string) =>
-    `Failed to import ${name}: ${error}`,
+  'notice.preview-failed-single': (name: string) =>
+    `Couldn't generate preview for ${name}.`,
+  'notice.preview-failed-multi': (count: number) =>
+    `Couldn't generate previews for ${count} file(s).`,
   'modal.insert-links-title': 'Insert links into active note?',
   'modal.insert-links-desc': (count: number) =>
     `Insert ${count} wiki-link(s) at the cursor position in the active note.`,
