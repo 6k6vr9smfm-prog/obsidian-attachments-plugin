@@ -1,4 +1,4 @@
-import { TAbstractFile, TFile, TFolder, loadPdfJs } from 'obsidian';
+import { Notice, TAbstractFile, TFile, TFolder, loadPdfJs } from 'obsidian';
 import { PREVIEW_SUFFIX } from './constants';
 import { AttachmentsAutopilotSettings } from './settings';
 import { stripScopePrefix, WatchedScope } from './file-utils';
@@ -103,7 +103,11 @@ export async function generatePreviewThumbnail(
       return await generateGenericPreview(file.path, thumbPath, adapter);
     }
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
     console.error(`Attachments Autopilot: failed to generate preview for ${file.path}`, e);
+    // Diagnostic surface for mobile where the debug console is hard to reach.
+    // Short enough to fit in a mobile toast; full stack stays in the console.
+    new Notice(`Preview failed (${type}) ${file.name}: ${msg}`, 8000);
   }
 
   return false;
