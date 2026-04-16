@@ -79,9 +79,15 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
     ) as unknown as VaultAdapter;
     this.twinManager = new TwinManager(this.vaultAdapter, this.settings);
 
-    // Wire preview adapter using real vault binary methods
+    // Wire preview adapter using real vault binary methods.
+    // Reads go through `vault.adapter.readBinary(path)` rather than
+    // `vault.readBinary(file)` to sidestep an iOS-specific race: right
+    // after `vault.createBinary` on the Capacitor filesystem, the
+    // high-level indexed read sometimes returns empty or stale data
+    // before Obsidian has re-indexed the freshly-written file. The
+    // low-level adapter reads straight from disk and is race-free.
     this.twinManager.setPreviewAdapter({
-      readBinary: (file: TFile) => this.app.vault.readBinary(file),
+      readBinary: (file: TFile) => this.app.vault.adapter.readBinary(file.path),
       createBinary: (path: string, data: ArrayBuffer) => this.app.vault.createBinary(path, data),
       getAbstractFileByPath: (path: string) => this.app.vault.getAbstractFileByPath(path),
       createFolder: (path: string) => this.app.vault.createFolder(path),

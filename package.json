@@ -1,6 +1,6 @@
 {
   "name": "obsidian-attachments-autopilot",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Automatically create queryable twin markdown files for non-markdown attachments, enabling management via Obsidian Bases",
   "main": "main.js",
   "scripts": {
