@@ -109,6 +109,13 @@ export async function generatePreviewThumbnail(
       return await generateGenericPreview(file.path, thumbPath, adapter);
     }
   } catch (e) {
+    // On the import path, `vault.createBinary` fires a vault `create` event
+    // that re-enters `createTwin` concurrently with the import command's
+    // explicit call. Both pass the upfront "thumb exists?" guard, render,
+    // and race at `createBinary(thumbPath, ...)`. The loser throws
+    // (usually "file already exists"). If the thumb is on disk now, the
+    // winner produced it — don't surface a false-positive error.
+    if (adapter.getAbstractFileByPath(thumbPath)) return false;
     console.error(`Attachments Autopilot: failed to generate preview for ${file.path}`, e);
     adapter.onError?.(file.path);
   }
