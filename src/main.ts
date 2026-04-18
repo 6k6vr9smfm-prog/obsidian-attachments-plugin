@@ -1,9 +1,9 @@
 import { App, Modal, Plugin, TFile, TAbstractFile, Notice, Menu, MenuItem, MarkdownView, Vault } from 'obsidian';
 import { AttachmentsAutopilotSettings, AttachmentsAutopilotSettingTab, DEFAULT_SETTINGS } from './settings';
 import { TwinManager, VaultAdapter } from './twin-manager';
-import { shouldProcess, shouldProcessPath, resolveWatchedScope } from './file-utils';
+import { shouldProcess, shouldProcessPath, resolveWatchedScope, isTwinFile } from './file-utils';
 import { createAttachmentBase, recreateAttachmentBase } from './base-creator';
-import { isTemplaterAvailable, runTemplaterOnFile } from './templater-integration';
+import { isTemplaterAvailable, runTemplaterOnFile, createTwinViaTemplater } from './templater-integration';
 import { importFiles, pickLocalFiles, ImportAdapter } from './import-command';
 import { t } from './i18n';
 
@@ -173,9 +173,33 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       await runTemplaterOnFile(this.app, twinFile);
     });
 
+    // Templater-first twin creator: lets Templater's full pipeline (wizard
+    // blocks, tp.system.prompt, tp.file.rename) author the twin. Returns
+    // null to signal "not applicable — fall back to the static path".
+    this.twinManager.setTemplaterTwinCreator(async (_attachment, folder, basename) => {
+      if (!this.settings.templaterEnabled) return null;
+      if (!this.settings.templaterTemplatePath) return null;
+      if (!isTemplaterAvailable(this.app)) return null;
+      const templateFile = this.app.vault.getAbstractFileByPath(this.settings.templaterTemplatePath);
+      if (!(templateFile instanceof TFile)) return null;
+      // Templater appends `.md` itself — strip it from the basename to
+      // avoid ending up with "foo.pdf.md.md".
+      const stem = basename.endsWith('.md') ? basename.slice(0, -3) : basename;
+      return createTwinViaTemplater(this.app, templateFile, folder, stem);
+    });
+
     // Wait for vault to be ready before registering events
     this.app.workspace.onLayoutReady(async () => {
       this.registerVaultEvents();
+
+      // Build the reverse attachment→twin index from existing twins.
+      // Required before syncAll / delete / rename operations, because
+      // Templater-renamed twins can no longer be located via path mapping.
+      try {
+        await this.twinManager.buildIndex();
+      } catch (e) {
+        console.error('Attachments Autopilot: failed to build twin index', e);
+      }
 
       // Auto-create Base file on first install
       if (!this.settings.baseCreated) {
@@ -361,7 +385,10 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
           return;
         }
 
-        // If a twin was deleted manually, do nothing (don't recreate)
+        // If a twin was deleted manually, keep the index in sync.
+        if (isTwinFile(file.path, this.settings)) {
+          this.twinManager.onTwinDeleted(file.path);
+        }
       }),
     );
 
@@ -373,6 +400,13 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
         const scope = this.currentScope();
         const wasProcessable = shouldProcessPath(oldPath, this.settings, scope);
         const isProcessable = shouldProcess(file, this.settings, scope);
+
+        // User-initiated rename of a twin file: update index so future
+        // lookups find it at its new path. Runs alongside the attachment
+        // branches below since an attachment rename never aliases a twin.
+        if (isTwinFile(file.path, this.settings) || isTwinFile(oldPath, this.settings)) {
+          this.twinManager.onTwinRenamed(oldPath, file.path);
+        }
 
         this.processing.add(file.path);
         try {

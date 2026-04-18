@@ -31,9 +31,31 @@ export interface VaultAdapter {
 
 export type TemplaterRunner = (twinFile: TFile) => Promise<void>;
 
+/**
+ * Hook that delegates twin creation to Templater's own
+ * `create_new_note_from_template` pipeline. Returns the resulting file
+ * (possibly renamed by the template) or null to indicate the manager
+ * should fall back to the static-template path.
+ */
+export type TemplaterTwinCreator = (
+  attachment: TFile,
+  folder: string,
+  basename: string,
+) => Promise<TFile | null>;
+
 export class TwinManager {
   private previewAdapter: PreviewGeneratorAdapter | null = null;
   private templaterRunner: TemplaterRunner | null = null;
+  private templaterTwinCreator: TemplaterTwinCreator | null = null;
+
+  /**
+   * Reverse index: attachment path → actual twin path. Needed because
+   * Templater-authored twins can be renamed by `tp.file.rename`, making
+   * the twin name no longer computable from the attachment path. Built
+   * once at startup (see `buildIndex`) and kept current on every
+   * create/rename/delete.
+   */
+  private twinIndex = new Map<string, string>();
 
   constructor(
     private vault: VaultAdapter,
@@ -46,6 +68,72 @@ export class TwinManager {
 
   setTemplaterRunner(runner: TemplaterRunner): void {
     this.templaterRunner = runner;
+  }
+
+  setTemplaterTwinCreator(creator: TemplaterTwinCreator | null): void {
+    this.templaterTwinCreator = creator;
+  }
+
+  /**
+   * Scans the twin folder and populates the reverse index from each
+   * twin's `attachment:` frontmatter key. Call once at plugin load.
+   */
+  async buildIndex(): Promise<void> {
+    this.twinIndex.clear();
+    for (const file of this.vault.getFiles()) {
+      if (!isTwinFile(file.path, this.settings)) continue;
+      const content = await this.vault.read(file);
+      const { data } = parseFrontmatter(content);
+      const raw = data['attachment'];
+      if (typeof raw !== 'string' || !raw) continue;
+      const attachmentPath = raw.replace(/^\[\[/, '').replace(/\]\]$/, '').trim();
+      if (attachmentPath) {
+        this.twinIndex.set(attachmentPath, file.path);
+      }
+    }
+  }
+
+  /** Returns the indexed twin path for an attachment, or null if unknown. */
+  getTwinPathForAttachment(attachmentPath: string): string | null {
+    return this.twinIndex.get(attachmentPath) ?? null;
+  }
+
+  /** Called by main.ts when a file inside the twin folder is renamed by the user. */
+  onTwinRenamed(oldTwinPath: string, newTwinPath: string): void {
+    for (const [attachment, twin] of this.twinIndex) {
+      if (twin === oldTwinPath) {
+        this.twinIndex.set(attachment, newTwinPath);
+        return;
+      }
+    }
+  }
+
+  /** Called by main.ts when a twin file is deleted by the user. */
+  onTwinDeleted(twinPath: string): void {
+    for (const [attachment, twin] of this.twinIndex) {
+      if (twin === twinPath) {
+        this.twinIndex.delete(attachment);
+        return;
+      }
+    }
+  }
+
+  /**
+   * Resolves the current twin path for an attachment. Prefers the index
+   * (authoritative for Templater-renamed twins), falls back to the
+   * computed path (works for canonically-named twins and legacy cases).
+   */
+  private findTwinPath(attachmentPath: string): string | null {
+    const indexed = this.twinIndex.get(attachmentPath);
+    if (indexed) {
+      const file = this.vault.getAbstractFileByPath(indexed);
+      if (file instanceof TFile) return indexed;
+      this.twinIndex.delete(attachmentPath); // stale
+    }
+    const scope = this.resolveScope();
+    const computed = getTwinPath(attachmentPath, this.settings, scope);
+    const file = this.vault.getAbstractFileByPath(computed);
+    return file instanceof TFile ? computed : null;
   }
 
   private resolveScope(): WatchedScope {
@@ -78,31 +166,93 @@ export class TwinManager {
 
     const template = await this.loadTemplate();
     const twinPath = getTwinPath(file.path, this.settings, scope);
-    const content = buildTwinContent(file.path, file.stat, this.settings, previewValue, template);
+    const managedContent = buildTwinContent(file.path, file.stat, this.settings, previewValue, template);
+
+    // If a twin already exists (computed path OR index-tracked renamed path),
+    // update it in place — don't invoke creator or runner. Re-running either
+    // would re-trigger interactive Templater prompts on every sync.
+    const existingPath = this.findTwinPath(file.path) ?? twinPath;
+    const existingTwin = this.vault.getAbstractFileByPath(existingPath);
+    if (existingTwin instanceof TFile) {
+      await this.vault.process(existingTwin, (existingContent) =>
+        mergeFrontmatter(existingContent, managedContent),
+      );
+      this.twinIndex.set(file.path, existingTwin.path);
+      return;
+    }
 
     await this.ensureParentFolder(twinPath);
+    const expectedFolder = parentFolder(twinPath);
 
-    const existingTwin = this.vault.getAbstractFileByPath(twinPath);
-    const isNewTwin = !(existingTwin instanceof TFile);
-    let createdTwin: TFile | undefined;
-    if (existingTwin instanceof TFile) {
-      // Atomic read-modify-write to avoid clobbering concurrent external edits
-      await this.vault.process(existingTwin, (existingContent) =>
-        mergeFrontmatter(existingContent, content),
-      );
-    } else {
-      createdTwin = await this.vault.create(twinPath, content);
+    // Templater-first path: let Templater create the file via its own
+    // `create_new_note_from_template` pipeline (fully supports <%* blocks,
+    // tp.system.prompt, tp.file.rename, etc.), then merge managed frontmatter.
+    if (!opts?.skipTemplater && this.templaterTwinCreator) {
+      const attachmentBasename = file.path.split('/').pop() || file.path;
+      let createdByTemplater: TFile | null = null;
+      try {
+        createdByTemplater = await this.templaterTwinCreator(file, expectedFolder, attachmentBasename);
+      } catch (e) {
+        // Decision B: if the runner threw mid-prompt but left a partial file
+        // behind, recover it below. Otherwise fall through to static path.
+        console.error('Attachments Autopilot: Templater twin creation failed', e);
+        createdByTemplater = this.findStrayTwin(file.path, expectedFolder, attachmentBasename);
+      }
+
+      if (createdByTemplater) {
+        const settled = await this.ensureInTwinFolder(createdByTemplater, expectedFolder);
+        await this.vault.process(settled, (existingContent) =>
+          mergeFrontmatter(existingContent, managedContent),
+        );
+        this.twinIndex.set(file.path, settled.path);
+        return;
+      }
+      // Creator returned null → fall through to static path.
     }
 
-    // Only run Templater on freshly-created twins. Re-running on existing
-    // twins would re-trigger any interactive prompts in the template on
-    // every startup sync — infinite prompt loop on iOS reload.
-    // Pass the TFile directly — getAbstractFileByPath may return null for a
-    // just-created file due to an indexing race (same issue as the preview
-    // generator, see comment in createTwin's preview block).
-    if (isNewTwin && !opts?.skipTemplater && this.templaterRunner && createdTwin) {
+    const createdTwin = await this.vault.create(twinPath, managedContent);
+    this.twinIndex.set(file.path, twinPath);
+
+    // Static-path runner (legacy): runs Templater's overwrite_file_commands
+    // on the already-written file. Kept for backwards compatibility when
+    // the creator hook is not wired.
+    if (!opts?.skipTemplater && this.templaterRunner && createdTwin) {
       await this.templaterRunner(createdTwin);
     }
+  }
+
+  /**
+   * If Templater's creation threw, a file may still have been written to
+   * its intended target path. Look it up so we can salvage partial state.
+   */
+  private findStrayTwin(attachmentPath: string, expectedFolder: string, basename: string): TFile | null {
+    const candidate = `${expectedFolder}/${basename}.md`;
+    const file = this.vault.getAbstractFileByPath(candidate);
+    if (file instanceof TFile) return file;
+    // Also check if anything in the twin folder already points at this attachment.
+    for (const f of this.vault.getFiles()) {
+      if (!isTwinFile(f.path, this.settings)) continue;
+      if (f.path === candidate) return f;
+    }
+    void attachmentPath;
+    return null;
+  }
+
+  /**
+   * Ensures the twin file lives inside the expected twin-folder path. If
+   * a template's `tp.file.rename` moved it elsewhere (e.g. vault root),
+   * move it back, preserving whatever basename the template chose.
+   */
+  private async ensureInTwinFolder(twin: TFile, expectedFolder: string): Promise<TFile> {
+    const currentFolder = parentFolder(twin.path);
+    if (currentFolder === expectedFolder) return twin;
+    const basename = twin.path.split('/').pop() || twin.path;
+    const target = expectedFolder ? `${expectedFolder}/${basename}` : basename;
+    if (target === twin.path) return twin;
+    await this.ensureParentFolder(target);
+    await this.vault.rename(twin, target);
+    const moved = this.vault.getAbstractFileByPath(target);
+    return moved instanceof TFile ? moved : twin;
   }
 
   async deleteTwin(file: TFile): Promise<void> {
@@ -111,10 +261,13 @@ export class TwinManager {
 
   async deleteTwinByPath(attachmentPath: string): Promise<void> {
     const scope = this.resolveScope();
-    const twinPath = getTwinPath(attachmentPath, this.settings, scope);
-    const twin = this.vault.getAbstractFileByPath(twinPath);
-    if (twin instanceof TFile) {
-      await this.vault.delete(twin);
+    const twinPath = this.findTwinPath(attachmentPath);
+    if (twinPath) {
+      const twin = this.vault.getAbstractFileByPath(twinPath);
+      if (twin instanceof TFile) {
+        await this.vault.delete(twin);
+      }
+      this.twinIndex.delete(attachmentPath);
     }
 
     // Clean up the generated preview thumbnail, if any.
@@ -139,11 +292,17 @@ export class TwinManager {
 
   async renameTwin(oldPath: string, newPath: string): Promise<void> {
     const scope = this.resolveScope();
-    const oldTwinPath = getTwinPath(oldPath, this.settings, scope);
-    const newTwinPath = getTwinPath(newPath, this.settings, scope);
+    const currentTwinPath = this.findTwinPath(oldPath);
+    if (!currentTwinPath) return;
+    const twin = this.vault.getAbstractFileByPath(currentTwinPath);
+    if (!(twin instanceof TFile)) return;
 
-    const twin = this.vault.getAbstractFileByPath(oldTwinPath);
-    if (!twin || !(twin instanceof TFile)) return;
+    const computedOldTwinPath = getTwinPath(oldPath, this.settings, scope);
+    const computedNewTwinPath = getTwinPath(newPath, this.settings, scope);
+    // If the twin currently sits at its canonical path, rename it to the new
+    // canonical path. If it sits elsewhere (e.g. Templater-renamed), preserve
+    // that name — only the attachment link inside needs updating.
+    const isCanonicallyNamed = currentTwinPath === computedOldTwinPath;
 
     // Compute preview paths once if previews are enabled
     const oldPreviewPath = this.settings.generatePreviews
@@ -166,12 +325,15 @@ export class TwinManager {
       }
     }
 
-    await this.ensureParentFolder(newTwinPath);
-
-    await this.vault.rename(twin, newTwinPath);
+    let finalTwinPath = currentTwinPath;
+    if (isCanonicallyNamed) {
+      await this.ensureParentFolder(computedNewTwinPath);
+      await this.vault.rename(twin, computedNewTwinPath);
+      finalTwinPath = computedNewTwinPath;
+    }
 
     // Atomically update all in-content references (attachment path + preview path)
-    const renamedTwin = this.vault.getAbstractFileByPath(newTwinPath);
+    const renamedTwin = this.vault.getAbstractFileByPath(finalTwinPath);
     if (renamedTwin instanceof TFile) {
       await this.vault.process(renamedTwin, (data) => {
         let updated = data.replace(new RegExp(escapeRegExp(oldPath), 'g'), newPath);
@@ -181,6 +343,9 @@ export class TwinManager {
         return updated;
       });
     }
+
+    this.twinIndex.delete(oldPath);
+    this.twinIndex.set(newPath, finalTwinPath);
   }
 
   async syncAll(): Promise<{ created: number; updated: number }> {
@@ -191,8 +356,7 @@ export class TwinManager {
     for (const file of this.vault.getFiles()) {
       if (!shouldProcess(file, this.settings, scope)) continue;
 
-      const twinPath = getTwinPath(file.path, this.settings, scope);
-      const existed = this.vault.getAbstractFileByPath(twinPath) instanceof TFile;
+      const existed = this.findTwinPath(file.path) !== null;
 
       // Always call createTwin — it's idempotent (read-modify-write via
       // mergeFrontmatter on existing twins). Skipping when the twin exists
@@ -376,6 +540,11 @@ export class TwinManager {
 
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function parentFolder(path: string): string {
+  const idx = path.lastIndexOf('/');
+  return idx === -1 ? '' : path.slice(0, idx);
 }
 
 /**

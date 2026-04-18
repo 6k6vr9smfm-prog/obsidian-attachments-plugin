@@ -303,6 +303,43 @@ This is the bug 0.7.6 fixed. Re-run on every mobile release:
       not a copy captured at plugin load time.
 - [ ] Flip the toggle back **ON** → next new attachment triggers the prompt.
 
+#### 3.7.o Templater wizard template with `tp.file.rename`
+
+- [ ] Configure template (e.g. `Factura.md`) that uses a `<%* ... -%>` block
+      with `tp.system.suggester`/`tp.system.prompt` to collect input and ends
+      with `tp.file.rename("Some Meaningful Name")`.
+- [ ] Template body emits its own frontmatter with `<% %>` substitutions.
+- [ ] Drop a new attachment → Templater prompts fire.
+- [ ] Fill in the prompts.
+- [ ] Twin lands in the twin folder (not at vault root) under the
+      template-chosen name (e.g. `attachments/twins/Electricity (March 2026).md`).
+- [ ] Twin has a **single** frontmatter block containing both managed keys
+      (`attachment`, `attachment-type`, etc.) and the template's fields
+      (`amount`, `provider`, `year-month`, etc.).
+- [ ] Right-click "Re-sync twin file" on the attachment → no prompts fire,
+      managed keys update in place, custom fields preserved.
+- [ ] Rename the attachment → twin filename stays unchanged (template's
+      chosen name preserved), but the `attachment:` frontmatter field
+      updates to the new path.
+- [ ] Delete the attachment → twin is removed.
+
+#### 3.7.p Templater cancelled mid-prompt
+
+- [ ] Drop a new attachment with the wizard template enabled.
+- [ ] Press Escape on one of the Templater prompts.
+- [ ] Twin file still exists in the twin folder with managed frontmatter
+      injected; unresolved `<% %>` markers remain in template fields
+      (user can fix them manually).
+- [ ] No crash, a console error is logged.
+
+#### 3.7.q Move-back into twin folder
+
+- [ ] With a template that calls `tp.file.move("/")` or otherwise moves the
+      file outside the twin folder, drop a new attachment.
+- [ ] Twin is moved back into the twin folder (preserving any template-chosen
+      basename). Verify the file no longer exists at the template's target
+      location.
+
 ### 3.8 Preview folder
 - [ ] Change **Preview folder** to `meta/previews`.
 - [ ] Create a new PDF → thumbnail lands under `meta/previews/`.

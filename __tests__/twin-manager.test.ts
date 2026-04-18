@@ -608,6 +608,207 @@ attachment-preview: ""
     });
   });
 
+  describe('templater twin creator (Templater-first flow)', () => {
+    it('uses creator to build the twin and injects managed frontmatter', async () => {
+      // Creator simulates Templater emitting a twin with extra fields but
+      // no managed keys. The manager must merge managed keys into it.
+      const creator = jest.fn(async (attachment: TFile, folder: string, basename: string) => {
+        const path = `${folder}/${basename}.md`;
+        return await vault.create(
+          path,
+          '---\namount: 42\nprovider: ACME\n---\n',
+        );
+      });
+      manager.setTemplaterTwinCreator(creator);
+
+      const file = makeTFile('attachments/photo.png', { size: 2048 });
+      await manager.createTwin(file);
+
+      expect(creator).toHaveBeenCalledTimes(1);
+      const content = vault.getContent('attachments/twins/photo.png.md')!;
+      expect(content).toContain('attachment: "[[attachments/photo.png]]"');
+      expect(content).toContain('attachment-type: image');
+      expect(content).toContain('attachment-size: 2048');
+      expect(content).toContain('amount: 42');
+      expect(content).toContain('provider: ACME');
+    });
+
+    it('moves twin back into twin folder when the creator renames it out', async () => {
+      // Simulates Templater's tp.file.rename moving the twin to vault root.
+      const creator = jest.fn(async () => {
+        return await vault.create('Electricity (March 2026).md', '---\namount: 1.86\n---\n');
+      });
+      manager.setTemplaterTwinCreator(creator);
+
+      const file = makeTFile('attachments/bill.pdf', { size: 4096 });
+      await manager.createTwin(file);
+
+      expect(vault.has('Electricity (March 2026).md')).toBe(false);
+      expect(vault.has('attachments/twins/Electricity (March 2026).md')).toBe(true);
+      const content = vault.getContent('attachments/twins/Electricity (March 2026).md')!;
+      expect(content).toContain('attachment: "[[attachments/bill.pdf]]"');
+      expect(content).toContain('amount: 1.86');
+    });
+
+    it('preserves a custom basename the creator assigned inside the twin folder', async () => {
+      // Templater renamed the file in-place; we should keep that name.
+      const creator = jest.fn(async (_f, folder: string) => {
+        return await vault.create(`${folder}/Gas March.md`, '---\namount: 10\n---\n');
+      });
+      manager.setTemplaterTwinCreator(creator);
+
+      const file = makeTFile('attachments/bill.pdf', { size: 4096 });
+      await manager.createTwin(file);
+
+      expect(vault.has('attachments/twins/Gas March.md')).toBe(true);
+      expect(vault.has('attachments/twins/bill.pdf.md')).toBe(false);
+    });
+
+    it('falls back to the static path when the creator returns null', async () => {
+      const creator = jest.fn(async () => null);
+      manager.setTemplaterTwinCreator(creator);
+
+      const file = makeTFile('attachments/photo.png', { size: 2048 });
+      await manager.createTwin(file);
+
+      expect(creator).toHaveBeenCalled();
+      expect(vault.has('attachments/twins/photo.png.md')).toBe(true);
+    });
+
+    it('does not invoke creator when skipTemplater is set', async () => {
+      const creator = jest.fn();
+      manager.setTemplaterTwinCreator(creator);
+
+      const file = makeTFile('attachments/photo.png', { size: 2048 });
+      await manager.createTwin(file, { skipTemplater: true });
+
+      expect(creator).not.toHaveBeenCalled();
+      expect(vault.has('attachments/twins/photo.png.md')).toBe(true);
+    });
+
+    it('does not invoke creator when the twin already exists (re-sync path)', async () => {
+      vault.seed(
+        'attachments/twins/photo.png.md',
+        '---\nattachment: "[[attachments/photo.png]]"\nattachment-type: image\n---',
+      );
+      const creator = jest.fn();
+      manager.setTemplaterTwinCreator(creator);
+
+      const file = makeTFile('attachments/photo.png', { size: 2048 });
+      await manager.createTwin(file);
+
+      expect(creator).not.toHaveBeenCalled();
+    });
+
+    it('recovers when creator throws but leaves a partial file behind', async () => {
+      // Decision B: partial state is acceptable — continue with managed
+      // frontmatter injection so the twin is at least linked to its attachment.
+      const creator = jest.fn(async (_f, folder: string, basename: string) => {
+        await vault.create(`${folder}/${basename}.md`, '---\namount: <% amount %>\n---\n');
+        throw new Error('user cancelled prompt');
+      });
+      manager.setTemplaterTwinCreator(creator);
+
+      const file = makeTFile('attachments/photo.png', { size: 2048 });
+      await manager.createTwin(file);
+
+      expect(vault.has('attachments/twins/photo.png.md')).toBe(true);
+      const content = vault.getContent('attachments/twins/photo.png.md')!;
+      expect(content).toContain('attachment: "[[attachments/photo.png]]"');
+      // Unresolved Templater markers remain in place — user can fix them.
+      // (mergeFrontmatter quotes values containing spaces, so match loosely.)
+      expect(content).toMatch(/amount:\s*"?<% amount %>"?/);
+    });
+  });
+
+  describe('twin index', () => {
+    it('buildIndex populates the reverse map from existing twins', async () => {
+      vault.seed(
+        'attachments/twins/Electricity (March 2026).md',
+        '---\nattachment: "[[attachments/2026-03 electricity.pdf]]"\nattachment-type: pdf\n---',
+      );
+      vault.seed(
+        'attachments/twins/photo.png.md',
+        '---\nattachment: "[[attachments/photo.png]]"\nattachment-type: image\n---',
+      );
+
+      await manager.buildIndex();
+
+      expect(manager.getTwinPathForAttachment('attachments/2026-03 electricity.pdf'))
+        .toBe('attachments/twins/Electricity (March 2026).md');
+      expect(manager.getTwinPathForAttachment('attachments/photo.png'))
+        .toBe('attachments/twins/photo.png.md');
+    });
+
+    it('deleteTwin uses the index to find a renamed twin', async () => {
+      vault.seed(
+        'attachments/twins/Electricity (March 2026).md',
+        '---\nattachment: "[[attachments/2026-03 electricity.pdf]]"\nattachment-type: pdf\n---',
+      );
+      await manager.buildIndex();
+
+      const attachment = makeTFile('attachments/2026-03 electricity.pdf');
+      await manager.deleteTwin(attachment);
+
+      expect(vault.has('attachments/twins/Electricity (March 2026).md')).toBe(false);
+    });
+
+    it('renameTwin updates attachment link in a custom-named twin without renaming the file', async () => {
+      vault.seed(
+        'attachments/twins/Electricity (March 2026).md',
+        '---\nattachment: "[[attachments/2026-03 electricity.pdf]]"\nattachment-type: pdf\n---\n',
+      );
+      await manager.buildIndex();
+
+      await manager.renameTwin('attachments/2026-03 electricity.pdf', 'attachments/2026-04 electricity.pdf');
+
+      // Custom-named twin stays put
+      expect(vault.has('attachments/twins/Electricity (March 2026).md')).toBe(true);
+      expect(vault.has('attachments/twins/2026-04 electricity.pdf.md')).toBe(false);
+
+      const content = vault.getContent('attachments/twins/Electricity (March 2026).md')!;
+      expect(content).toContain('attachment: "[[attachments/2026-04 electricity.pdf]]"');
+    });
+
+    it('renameTwin renames a canonically-named twin as before', async () => {
+      vault.seed(
+        'attachments/twins/photo.png.md',
+        '---\nattachment: "[[attachments/photo.png]]"\nattachment-type: image\n---\n',
+      );
+      await manager.buildIndex();
+
+      await manager.renameTwin('attachments/photo.png', 'attachments/snapshot.png');
+
+      expect(vault.has('attachments/twins/photo.png.md')).toBe(false);
+      expect(vault.has('attachments/twins/snapshot.png.md')).toBe(true);
+    });
+
+    it('onTwinRenamed updates the index when the user renames a twin file', async () => {
+      vault.seed(
+        'attachments/twins/photo.png.md',
+        '---\nattachment: "[[attachments/photo.png]]"\nattachment-type: image\n---',
+      );
+      await manager.buildIndex();
+
+      manager.onTwinRenamed('attachments/twins/photo.png.md', 'attachments/twins/renamed.md');
+
+      expect(manager.getTwinPathForAttachment('attachments/photo.png'))
+        .toBe('attachments/twins/renamed.md');
+    });
+
+    it('onTwinDeleted clears the index entry when the user deletes a twin', async () => {
+      vault.seed(
+        'attachments/twins/photo.png.md',
+        '---\nattachment: "[[attachments/photo.png]]"\nattachment-type: image\n---',
+      );
+      await manager.buildIndex();
+
+      manager.onTwinDeleted('attachments/twins/photo.png.md');
+
+      expect(manager.getTwinPathForAttachment('attachments/photo.png')).toBeNull();
+    });
+  });
+
   describe('countMissingPreviews', () => {
     it('counts twins with empty attachment-preview', async () => {
       vault.seed('attachments/twins/a.png.md', '---\nattachment: "[[attachments/a.png]]"\nattachment-type: image\nattachment-preview: ""\n---');

@@ -1,4 +1,4 @@
-import { App, TFile } from 'obsidian';
+import { App, TFile, TFolder } from 'obsidian';
 
 /**
  * Shape of the Templater plugin's public runtime we rely on.
@@ -9,6 +9,12 @@ import { App, TFile } from 'obsidian';
 interface TemplaterPlugin {
   templater: {
     overwrite_file_commands(file: TFile): Promise<void>;
+    create_new_note_from_template(
+      template: TFile | string,
+      folder?: TFolder | string,
+      filename?: string,
+      open_new_note?: boolean,
+    ): Promise<TFile | undefined>;
   };
 }
 
@@ -57,4 +63,33 @@ export async function getTemplateContent(app: App, templatePath: string): Promis
  */
 export function hasTemplaterSyntax(content: string): boolean {
   return /<%[\s\S]*?%>/.test(content);
+}
+
+/**
+ * Creates a new twin file by invoking Templater's own
+ * `create_new_note_from_template` pipeline — meaning `<%*` wizard blocks,
+ * `tp.system.prompt`, `tp.file.rename`, etc. all work natively. Returns
+ * the resulting TFile (which may have been renamed by the template) or
+ * null if Templater is unavailable or the call produced no file.
+ *
+ * The caller is responsible for (a) ensuring the file is inside the twin
+ * folder after Templater runs and (b) merging managed frontmatter into
+ * whatever content the template emitted.
+ */
+export async function createTwinViaTemplater(
+  app: App,
+  template: TFile,
+  folder: string,
+  basename: string,
+): Promise<TFile | null> {
+  const templaterPlugin = getTemplaterPlugin(app);
+  if (!templaterPlugin) return null;
+
+  const result = await templaterPlugin.templater.create_new_note_from_template(
+    template,
+    folder,
+    basename,
+    false,
+  );
+  return result ?? null;
 }

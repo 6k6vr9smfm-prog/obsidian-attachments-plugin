@@ -31,7 +31,7 @@ To test in Obsidian: the `test-vault/` directory is a real vault with the plugin
 
 - **`src/main.ts`** — Plugin lifecycle. Registers vault events (`create`/`delete`/`rename`), commands, settings tab, and context menu. Uses `onLayoutReady()` to defer event registration. A `processing` Set prevents concurrent operations on the same path.
 
-- **`src/twin-manager.ts`** — All twin CRUD operations. Depends on a `VaultAdapter` interface (not directly on Obsidian's Vault) so it's testable with `FakeVault`. Methods: `createTwin`, `deleteTwin`, `renameTwin`, `syncAll`, `deleteAllTwins`, `moveTwinsToFolder`. Calls preview generation when `generatePreviews` is enabled.
+- **`src/twin-manager.ts`** — All twin CRUD operations. Depends on a `VaultAdapter` interface (not directly on Obsidian's Vault) so it's testable with `FakeVault`. Methods: `createTwin`, `deleteTwin`, `renameTwin`, `syncAll`, `deleteAllTwins`, `moveTwinsToFolder`, `buildIndex`. Calls preview generation when `generatePreviews` is enabled. Maintains a reverse index `attachmentPath → twinPath` so Templater-renamed twins (via `tp.file.rename`) can still be located by their attachment link.
 
 - **`src/file-utils.ts`** — Pure functions with zero Obsidian imports (uses the `TFile` type only). `shouldProcess()` is the single guard checked before every operation (rejects .md, twin folder, preview thumbnails, excluded paths, non-watched folders). `getTwinPath()` / `getAttachmentPathFromTwin()` handle path mapping between attachments and twins.
 
@@ -43,7 +43,7 @@ To test in Obsidian: the `test-vault/` directory is a real vault with the plugin
 
 - **`src/constants.ts`** — Extension-to-type map, managed frontmatter keys list, preview suffix.
 
-- **`src/templater-integration.ts`** — Optional Templater plugin integration. `isTemplaterAvailable()` checks if Templater is installed. `runTemplaterOnFile()` processes a twin file through Templater. Wired via `TwinManager.setTemplaterRunner()` callback.
+- **`src/templater-integration.ts`** — Optional Templater plugin integration. `isTemplaterAvailable()` checks if Templater is installed. `createTwinViaTemplater()` delegates twin creation to Templater's `create_new_note_from_template` pipeline — supports `<%*` wizard blocks, `tp.system.prompt`, and `tp.file.rename`. Wired via `TwinManager.setTemplaterTwinCreator()`. Legacy `runTemplaterOnFile()` + `setTemplaterRunner()` remain for the static-template fallback path.
 
 - **`src/settings.ts`** — Settings interface, defaults, and `PluginSettingTab` UI. Includes `customFields` (user-defined frontmatter), `templaterEnabled`, and `templaterTemplatePath`.
 
@@ -72,3 +72,5 @@ twinFolder:              attachments/twins
 ```
 
 Under `{ mode: 'all' }`, no prefix is stripped — the twin mirrors the full vault path under `twinFolder`. When `twinFolder` is empty, twins go next to the attachment.
+
+When the Templater-first flow is active, the twin's final path may diverge from the computed one (e.g. `tp.file.rename("Electricity (March 2026)")`). In that case the mapping is recorded in `TwinManager.twinIndex`, keyed by the attachment path. The `attachment:` frontmatter key in each twin is the canonical on-disk proof of the relationship — `buildIndex()` rebuilds the index from it at plugin load. If the template moves the file outside the computed twin folder, `ensureInTwinFolder` moves it back (preserving the template's chosen basename).
