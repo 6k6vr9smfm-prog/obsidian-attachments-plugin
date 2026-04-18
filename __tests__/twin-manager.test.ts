@@ -700,6 +700,78 @@ attachment-preview: ""
       expect(creator).not.toHaveBeenCalled();
     });
 
+    it('does not leak template body source when the creator emits empty-body output', async () => {
+      // Wizard templates (`<%* ... -%>\n---\nkeys\n---`) produce a file with
+      // a frontmatter block and no body. If we used the raw template file as
+      // a fallback body, the unprocessed `<%*` source would leak into the twin.
+      const wizardTemplate = '<%*\nconst x = await tp.system.prompt("x");\n-%>\n---\nvalue: <% x %>\n---\n';
+      vault.seed('templates/wizard.md', wizardTemplate);
+      settings.templaterTemplatePath = 'templates/wizard.md';
+
+      const creator = jest.fn(async (_f, folder: string, basename: string) => {
+        // Simulate Templater's output: frontmatter resolved, empty body.
+        return await vault.create(`${folder}/${basename}.md`, '---\nvalue: 42\n---\n');
+      });
+      manager.setTemplaterTwinCreator(creator);
+
+      const file = makeTFile('attachments/photo.png', { size: 2048 });
+      await manager.createTwin(file);
+
+      const content = vault.getContent('attachments/twins/photo.png.md')!;
+      expect(content).not.toContain('<%*');
+      expect(content).not.toContain('tp.system.prompt');
+      expect(content).toContain('value: 42');
+      expect(content).toContain('attachment: "[[attachments/photo.png]]"');
+    });
+
+    it('replaces unprocessed template output with static content when Templater aborts fatally', async () => {
+      // Broken template with syntax error: Templater writes raw source and
+      // throws. Rather than merging managed keys into raw `<%*` content, the
+      // manager should replace it with the clean static-path content.
+      const brokenTemplate = '<%*\nconst x = broken syntax;\n-%>\n---\nbroken: true\n---\n';
+      vault.seed('templates/broken.md', brokenTemplate);
+      settings.templaterTemplatePath = 'templates/broken.md';
+
+      const creator = jest.fn(async (_f, folder: string, basename: string) => {
+        // Templater wrote raw source but threw before processing.
+        await vault.create(`${folder}/${basename}.md`, brokenTemplate);
+        throw new Error('Template parsing error');
+      });
+      manager.setTemplaterTwinCreator(creator);
+
+      const file = makeTFile('attachments/photo.png', { size: 2048 });
+      await manager.createTwin(file);
+
+      const content = vault.getContent('attachments/twins/photo.png.md')!;
+      expect(content).not.toContain('<%*');
+      expect(content).not.toContain('broken syntax');
+      expect(content).toContain('attachment: "[[attachments/photo.png]]"');
+      // Fallback is managed-only: embed link body, no template frontmatter.
+      expect(content).toContain('![[attachments/photo.png]]');
+      expect(content).not.toContain('broken: true');
+    });
+
+    it('does not re-inject template body into an existing twin on re-sync', async () => {
+      // A wizard-template twin has already been created (single merged block,
+      // empty body). Re-syncing must not pull the raw `<%*` source back in
+      // via the managed-content fallback.
+      const wizardTemplate = '<%*\nconst x = await tp.system.prompt("x");\n-%>\n---\nvalue: <% x %>\n---\n';
+      vault.seed('templates/wizard.md', wizardTemplate);
+      settings.templaterTemplatePath = 'templates/wizard.md';
+      vault.seed(
+        'attachments/twins/photo.png.md',
+        '---\nattachment: "[[attachments/photo.png]]"\nattachment-type: image\nvalue: 42\n---\n',
+      );
+
+      const file = makeTFile('attachments/photo.png', { size: 2048 });
+      await manager.createTwin(file);
+
+      const content = vault.getContent('attachments/twins/photo.png.md')!;
+      expect(content).not.toContain('<%*');
+      expect(content).not.toContain('tp.system.prompt');
+      expect(content).toContain('value: 42');
+    });
+
     it('recovers when creator throws but leaves a partial file behind', async () => {
       // Decision B: partial state is acceptable — continue with managed
       // frontmatter injection so the twin is at least linked to its attachment.

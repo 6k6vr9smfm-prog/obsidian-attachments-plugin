@@ -166,16 +166,29 @@ export class TwinManager {
 
     const template = await this.loadTemplate();
     const twinPath = getTwinPath(file.path, this.settings, scope);
-    const managedContent = buildTwinContent(file.path, file.stat, this.settings, previewValue, template);
+
+    // Two flavors of the "generated content" argument to mergeFrontmatter:
+    //   - staticContent: managed frontmatter + the template's non-managed
+    //     keys and body — used when no Templater pass is happening (static
+    //     mode or standalone new twin).
+    //   - managedOnlyContent: managed frontmatter only, default embed-link
+    //     body. Used as the merge payload for Templater-authored twins.
+    //     Passing staticContent there would inject the template's raw
+    //     `<%*` source as a body fallback whenever Templater emits an
+    //     empty body (wizard templates typically do), leaking unprocessed
+    //     template source into the final twin.
+    const staticContent = buildTwinContent(file.path, file.stat, this.settings, previewValue, template);
+    const managedOnlyContent = buildTwinContent(file.path, file.stat, this.settings, previewValue, null);
 
     // If a twin already exists (computed path OR index-tracked renamed path),
     // update it in place — don't invoke creator or runner. Re-running either
-    // would re-trigger interactive Templater prompts on every sync.
+    // would re-trigger interactive Templater prompts on every sync. Use the
+    // managed-only payload so re-sync never re-injects template source.
     const existingPath = this.findTwinPath(file.path) ?? twinPath;
     const existingTwin = this.vault.getAbstractFileByPath(existingPath);
     if (existingTwin instanceof TFile) {
       await this.vault.process(existingTwin, (existingContent) =>
-        mergeFrontmatter(existingContent, managedContent),
+        mergeFrontmatter(existingContent, managedOnlyContent),
       );
       this.twinIndex.set(file.path, existingTwin.path);
       return;
@@ -201,16 +214,25 @@ export class TwinManager {
 
       if (createdByTemplater) {
         const settled = await this.ensureInTwinFolder(createdByTemplater, expectedFolder);
-        await this.vault.process(settled, (existingContent) =>
-          mergeFrontmatter(existingContent, managedContent),
-        );
+        const currentContent = await this.vault.read(settled);
+        if (looksUnprocessed(currentContent)) {
+          // Template had a fatal error (e.g. syntax error) — Templater left
+          // raw `<%* ... -%>` source on disk without processing. Replace
+          // with a clean managed-only twin (managed frontmatter + embed
+          // link body) rather than merging into the raw source.
+          await this.vault.modify(settled, managedOnlyContent);
+        } else {
+          await this.vault.process(settled, (existingContent) =>
+            mergeFrontmatter(existingContent, managedOnlyContent),
+          );
+        }
         this.twinIndex.set(file.path, settled.path);
         return;
       }
       // Creator returned null → fall through to static path.
     }
 
-    const createdTwin = await this.vault.create(twinPath, managedContent);
+    const createdTwin = await this.vault.create(twinPath, staticContent);
     this.twinIndex.set(file.path, twinPath);
 
     // Static-path runner (legacy): runs Templater's overwrite_file_commands
@@ -545,6 +567,15 @@ function escapeRegExp(str: string): string {
 function parentFolder(path: string): string {
   const idx = path.lastIndexOf('/');
   return idx === -1 ? '' : path.slice(0, idx);
+}
+
+/**
+ * A Templater-authored file that still contains `<%*` means Templater
+ * aborted before running (e.g. template syntax error) and wrote the raw
+ * template to disk. Used to decide whether to salvage or replace.
+ */
+function looksUnprocessed(content: string): boolean {
+  return /<%\s*\*/.test(content);
 }
 
 /**
