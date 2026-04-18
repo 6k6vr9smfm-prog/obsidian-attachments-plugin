@@ -293,6 +293,16 @@ This is the bug 0.7.6 fixed. Re-run on every mobile release:
       newly-created twin (not per pre-existing one).
 - [ ] Notice reports the created/updated count.
 
+#### 3.7.n Regression — live toggle disarm (BUG-R6-01)
+
+- [ ] Start with **Templater integration** toggle **ON** and a template with
+      `<% %>` markers.
+- [ ] Open settings and flip the toggle **OFF** (do **not** reload the plugin).
+- [ ] Drop a new attachment into a watched folder.
+- [ ] **No Templater prompt appears.** The runner must read the live setting,
+      not a copy captured at plugin load time.
+- [ ] Flip the toggle back **ON** → next new attachment triggers the prompt.
+
 ### 3.8 Preview folder
 - [ ] Change **Preview folder** to `meta/previews`.
 - [ ] Create a new PDF → thumbnail lands under `meta/previews/`.

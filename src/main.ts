@@ -164,13 +164,14 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       onError: (path: string) => this.recordPreviewFailure(path),
     });
 
-    // Wire Templater integration if enabled
-    if (this.settings.templaterEnabled) {
-      this.twinManager.setTemplaterRunner(async (twinFile: TFile) => {
-        if (!isTemplaterAvailable(this.app)) return;
-        await runTemplaterOnFile(this.app, twinFile);
-      });
-    }
+    // Always wire the Templater runner; gate inside the callback by reading
+    // the live setting so runtime toggle changes take effect immediately
+    // without needing a plugin reload.
+    this.twinManager.setTemplaterRunner(async (twinFile: TFile) => {
+      if (!this.settings.templaterEnabled) return;
+      if (!isTemplaterAvailable(this.app)) return;
+      await runTemplaterOnFile(this.app, twinFile);
+    });
 
     // Wait for vault to be ready before registering events
     this.app.workspace.onLayoutReady(async () => {
