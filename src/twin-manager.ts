@@ -83,6 +83,7 @@ export class TwinManager {
     await this.ensureParentFolder(twinPath);
 
     const existingTwin = this.vault.getAbstractFileByPath(twinPath);
+    const isNewTwin = !(existingTwin instanceof TFile);
     if (existingTwin instanceof TFile) {
       // Atomic read-modify-write to avoid clobbering concurrent external edits
       await this.vault.process(existingTwin, (existingContent) =>
@@ -92,7 +93,10 @@ export class TwinManager {
       await this.vault.create(twinPath, content);
     }
 
-    if (this.templaterRunner) {
+    // Only run Templater on freshly-created twins. Re-running on existing
+    // twins would re-trigger any interactive prompts in the template on
+    // every startup sync — infinite prompt loop on iOS reload.
+    if (isNewTwin && this.templaterRunner) {
       await this.templaterRunner(twinPath);
     }
   }

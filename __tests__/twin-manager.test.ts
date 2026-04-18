@@ -577,7 +577,10 @@ attachment-preview: ""
       // No error, no call — runner is null by default
     });
 
-    it('invokes templaterRunner on re-sync of existing twin', async () => {
+    it('does not invoke templaterRunner when twin already exists (re-sync)', async () => {
+      // Re-running Templater on pre-existing twins would re-trigger any
+      // interactive prompts in the template every startup — infinite prompt
+      // loop on iOS reload. Templater should only run on first creation.
       vault.seed('attachments/twins/photo.png.md', '---\nattachment-type: image\n---');
       const runner = jest.fn();
       manager.setTemplaterRunner(runner);
@@ -585,7 +588,7 @@ attachment-preview: ""
       const file = makeTFile('attachments/photo.png', { size: 2048 });
       await manager.createTwin(file);
 
-      expect(runner).toHaveBeenCalledTimes(1);
+      expect(runner).not.toHaveBeenCalled();
     });
   });
 
