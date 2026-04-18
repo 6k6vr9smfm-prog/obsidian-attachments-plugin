@@ -3,7 +3,6 @@ import { AttachmentsAutopilotSettings, AttachmentsAutopilotSettingTab, DEFAULT_S
 import { TwinManager, VaultAdapter } from './twin-manager';
 import { shouldProcess, shouldProcessPath, resolveWatchedScope, isTwinFile } from './file-utils';
 import { createAttachmentBase, recreateAttachmentBase } from './base-creator';
-import { isTemplaterAvailable, runTemplaterOnFile, createTwinViaTemplater } from './templater-integration';
 import { importFiles, pickLocalFiles, ImportAdapter } from './import-command';
 import { t } from './i18n';
 
@@ -48,49 +47,6 @@ class InsertLinksModal extends Modal {
     if (this.resolved) return;
     this.resolved = true;
     this.resolve(insert);
-    this.close();
-  }
-
-  prompt(): Promise<boolean> {
-    return new Promise((resolve) => {
-      this.resolve = resolve;
-      this.open();
-    });
-  }
-}
-
-class BulkTemplaterModal extends Modal {
-  private resolved = false;
-  private resolve!: (runTemplater: boolean) => void;
-  private count: number;
-
-  constructor(app: App, count: number) {
-    super(app);
-    this.count = count;
-  }
-
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.createEl('h3', { text: t('modal.bulk-templater-title') });
-    contentEl.createEl('p', { text: t('modal.bulk-templater-desc')(this.count) });
-
-    const buttonRow = contentEl.createDiv({ cls: 'modal-button-container' });
-    buttonRow.createEl('button', { text: t('modal.bulk-templater-yes'), cls: 'mod-cta' })
-      .addEventListener('click', () => this.finish(true));
-    buttonRow.createEl('button', { text: t('modal.bulk-templater-no') })
-      .addEventListener('click', () => this.finish(false));
-  }
-
-  onClose() {
-    // Dismissing the modal without choosing defaults to "skip" — safer
-    // than firing N interactive prompts the user never opted into.
-    this.finish(false);
-  }
-
-  private finish(runTemplater: boolean) {
-    if (this.resolved) return;
-    this.resolved = true;
-    this.resolve(runTemplater);
     this.close();
   }
 
@@ -162,30 +118,6 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       getAbstractFileByPath: (path: string) => this.app.vault.getAbstractFileByPath(path),
       createFolder: (path: string) => this.app.vault.createFolder(path),
       onError: (path: string) => this.recordPreviewFailure(path),
-    });
-
-    // Always wire the Templater runner; gate inside the callback by reading
-    // the live setting so runtime toggle changes take effect immediately
-    // without needing a plugin reload.
-    this.twinManager.setTemplaterRunner(async (twinFile: TFile) => {
-      if (!this.settings.templaterEnabled) return;
-      if (!isTemplaterAvailable(this.app)) return;
-      await runTemplaterOnFile(this.app, twinFile);
-    });
-
-    // Templater-first twin creator: lets Templater's full pipeline (wizard
-    // blocks, tp.system.prompt, tp.file.rename) author the twin. Returns
-    // null to signal "not applicable — fall back to the static path".
-    this.twinManager.setTemplaterTwinCreator(async (_attachment, folder, basename) => {
-      if (!this.settings.templaterEnabled) return null;
-      if (!this.settings.templaterTemplatePath) return null;
-      if (!isTemplaterAvailable(this.app)) return null;
-      const templateFile = this.app.vault.getAbstractFileByPath(this.settings.templaterTemplatePath);
-      if (!(templateFile instanceof TFile)) return null;
-      // Templater appends `.md` itself — strip it from the basename to
-      // avoid ending up with "foo.pdf.md.md".
-      const stem = basename.endsWith('.md') ? basename.slice(0, -3) : basename;
-      return createTwinViaTemplater(this.app, templateFile, folder, stem);
     });
 
     // Wait for vault to be ready before registering events
@@ -284,21 +216,6 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
         const picked = await pickLocalFiles(true);
         if (picked.length === 0) return;
 
-        // Bulk-import consent: if the user has Templater enabled with a
-        // working template and is importing > 1 file, ask once whether to
-        // run Templater on each new twin. Otherwise a multi-file import
-        // fires N sequential interactive prompt sequences with no opt-out.
-        let skipTemplater = false;
-        if (
-          picked.length > 1 &&
-          this.settings.templaterEnabled &&
-          this.settings.templaterTemplatePath &&
-          isTemplaterAvailable(this.app)
-        ) {
-          const runOnEach = await new BulkTemplaterModal(this.app, picked.length).prompt();
-          skipTemplater = !runOnEach;
-        }
-
         const adapter: ImportAdapter = {
           getAvailablePathForAttachment: (filename: string, sourcePath?: string) =>
             this.app.fileManager.getAvailablePathForAttachment(filename, sourcePath ?? ''),
@@ -313,7 +230,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
           getActiveMarkdownPath: () => this.app.workspace.getActiveFile()?.path,
         };
 
-        const result = await importFiles(picked, adapter, this.twinManager, { skipTemplater });
+        const result = await importFiles(picked, adapter, this.twinManager);
 
         // Clean up processing Set entries added by createBinary above
         for (const f of result.imported) {
