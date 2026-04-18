@@ -148,10 +148,150 @@ See section 4 for the full cross-platform import matrix.
 - [ ] Open a **pre-existing** twin → it now contains `project` and `status` keys (T3.6 fix: syncAll re-merges existing twins).
 
 ### 3.7 Templater integration
-- [ ] Install Templater.
-- [ ] Point **Templater template path** at a template with a `<% tp.date.now() %>` expression.
-- [ ] Enable **Templater integration**.
-- [ ] Create a new attachment → twin has the expression resolved to an actual date.
+
+These tests cover the 0.7.6+ redesign: clearer labels, live status hints
+under the toggle, bulk-import consent modal, and the regression fix for
+the iOS infinite-prompt loop.
+
+**Test template setup** (reused across the section unless noted):
+create `templates/attachment-twin.md` with a `<% %>`-aware frontmatter block,
+e.g.:
+```markdown
+---
+project: <% tp.system.prompt("Project name") %>
+owner: <% tp.user.currentUser() ?? "unknown" %>
+imported-on: <% tp.date.now("YYYY-MM-DD") %>
+---
+
+Notes for <% tp.file.title %>.
+```
+
+#### 3.7.a Settings status hints
+
+- [ ] **Toggle off** → no status hint is shown below the toggle (even if the
+      template path is set).
+- [ ] **Toggle on, Templater plugin NOT installed** → warning hint below the
+      toggle: "Templater plugin is not installed…" rendered in the warning
+      color.
+- [ ] **Toggle on, Templater installed, path empty** → neutral hint: "Set a
+      template file below for Templater to process."
+- [ ] **Toggle on, Templater installed, path points to a non-existent file** →
+      warning: "Template file not found in the vault."
+- [ ] **Toggle on, Templater installed, path points to a template without any
+      `<% %>` markers** → neutral hint: "Current template has no `<% … %>`
+      dynamic fields — Templater will not change anything."
+- [ ] **Toggle on, Templater installed, template has `<% %>` markers** → no
+      status hint (silent = green path).
+- [ ] Toggling the integration on/off re-renders the hint immediately (no need
+      to leave and re-enter the settings tab).
+- [ ] Editing the template path re-reads the file and updates the hint
+      immediately.
+
+#### 3.7.b Single-file reactive flow — Templater enabled
+
+- [ ] Drop `attachments/photo.png` into the vault.
+- [ ] Templater prompts fire **once** (for `tp.system.prompt`) as the twin is
+      created.
+- [ ] After filling the prompt, the twin's frontmatter contains the resolved
+      values (real project name, real date), not `<% %>` markers.
+- [ ] Managed keys (`attachment`, `attachment-type`, `attachment-size`, etc.)
+      are all present alongside the template-derived keys.
+
+#### 3.7.c Single-file reactive flow — Templater disabled
+
+- [ ] With the **toggle off** and the template path still set, drop a new
+      attachment.
+- [ ] No Templater prompt appears.
+- [ ] The twin contains the template's frontmatter lines **literally**
+      (`<% %>` markers preserved) plus the managed keys.
+- [ ] Body from the template appears in the twin; no trailing `![[…]]` embed
+      is added when the template already provided a body.
+
+#### 3.7.d Right-click "Re-sync twin file" on an existing twin
+
+- [ ] Twin already exists (Templater ran once when it was created).
+- [ ] Right-click the attachment → **Re-sync twin file**.
+- [ ] No Templater prompt appears. Managed keys update (size/modified);
+      user-added keys and any resolved Templater values are preserved.
+
+#### 3.7.e Empty / whitespace-only template
+
+- [ ] Point the template path at a file whose entire content is `---\n---\n`
+      (frontmatter block with no keys, no body) or at an empty file.
+- [ ] Drop a new attachment.
+- [ ] Twin contains only the managed frontmatter keys and a fallback
+      `![[attachmentPath]]` embed in the body.
+- [ ] No crash, no error Notice.
+
+#### 3.7.f Bulk import — consent modal appears
+
+- [ ] Templater enabled + Templater installed + template with `<% %>`.
+- [ ] Run **Import files from device** and select **3 files**.
+- [ ] Before any twin is created, the bulk-Templater consent modal appears:
+      "Run Templater on each new twin?" with the count (3) in the body.
+- [ ] Buttons read **Run Templater on each** (primary) and **Skip for this
+      batch**.
+
+#### 3.7.g Bulk import — "Run Templater on each"
+
+- [ ] From the consent modal, click **Run Templater on each**.
+- [ ] Templater's `tp.system.prompt` fires **3 times** in sequence (once per
+      imported file).
+- [ ] All 3 twins end up with resolved values.
+- [ ] Existing behavior continues: the "Insert links into active note?" modal
+      is offered after import if an active markdown view is present.
+
+#### 3.7.h Bulk import — "Skip for this batch"
+
+- [ ] From the consent modal, click **Skip for this batch**.
+- [ ] No Templater prompts fire.
+- [ ] All 3 twins are created with the template's frontmatter applied
+      **literally** (raw `<% %>` markers preserved).
+- [ ] The user can later run **Re-sync twin file** on an individual twin —
+      note: re-sync does **not** trigger Templater either (by design — it
+      only runs on first creation). This is documented behavior, not a bug;
+      users who want to fill prompts later must open the twin and invoke
+      Templater manually (e.g. via Templater's own command palette entries).
+
+#### 3.7.i Bulk import — consent modal dismissed (Esc / outside click)
+
+- [ ] With Templater enabled + bulk import starting, dismiss the modal via
+      Esc or by clicking outside.
+- [ ] Import proceeds with Templater **skipped** (the modal defaults to Skip
+      on close — safer than firing N prompts the user never opted into).
+
+#### 3.7.j Bulk import — single file exception
+
+- [ ] Select **exactly 1 file** in the picker.
+- [ ] The bulk-Templater consent modal does **not** appear.
+- [ ] Templater prompts fire normally (once, for that one file).
+
+#### 3.7.k Bulk import — Templater disabled / uninstalled
+
+- [ ] With the Templater toggle **off**, select 3 files to import.
+- [ ] The bulk consent modal does **not** appear; twins are created from the
+      template as-is.
+- [ ] Same expectation if the toggle is on but Templater is not installed.
+
+#### 3.7.l Regression — iOS app reload with syncOnStartup
+
+This is the bug 0.7.6 fixed. Re-run on every mobile release:
+
+- [ ] Enable **Sync on startup** + **Templater integration** with a
+      `<% tp.system.prompt(...) %>` template.
+- [ ] Ensure several existing twins already live in the vault.
+- [ ] Fully close and reopen Obsidian on iOS.
+- [ ] **No Templater prompt appears on reload.** startup sync must not
+      re-trigger Templater on already-existing twins.
+- [ ] Create a new attachment after reload → prompt fires once, as expected.
+
+#### 3.7.m Regression — startup sync creates *new* twins with Templater
+
+- [ ] Vault has several attachments without twins; **Sync on startup** is on.
+- [ ] Restart Obsidian.
+- [ ] Startup sync creates the missing twins; Templater prompts fire once per
+      newly-created twin (not per pre-existing one).
+- [ ] Notice reports the created/updated count.
 
 ### 3.8 Preview folder
 - [ ] Change **Preview folder** to `meta/previews`.

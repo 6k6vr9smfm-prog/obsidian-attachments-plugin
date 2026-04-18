@@ -37,6 +37,11 @@ export default {
     `${count} Wiki-Link(s) an der Cursorposition in der aktiven Notiz einfügen.`,
   'modal.insert-links-yes': 'Einfügen',
   'modal.insert-links-no': 'Überspringen',
+  'modal.bulk-templater-title': 'Templater für jeden neuen Zwilling ausführen?',
+  'modal.bulk-templater-desc': (count: number) =>
+    `Du importierst ${count} Dateien. Wenn du fortfährst, fragt Templater einmal pro Datei nach den Vorlagenfeldern. Wähle "Überspringen", um die Zwillinge jetzt zu erstellen und Templater später für einzelne Zwillinge auszuführen.`,
+  'modal.bulk-templater-yes': 'Templater für jeden ausführen',
+  'modal.bulk-templater-no': 'Für diesen Stapel überspringen',
 
   // Settings
   'settings.sync-on-startup': 'Beim Start synchronisieren',
@@ -53,10 +58,14 @@ export default {
   'settings.preview-folder.placeholder': 'z. B. attachments/twins/previews',
   'settings.custom-fields': 'Benutzerdefinierte Frontmatter-Felder',
   'settings.custom-fields.desc': 'Zusätzliche Felder für jede Zwillingsdatei (ein "Schlüssel: Wert" pro Zeile). Wird ignoriert, wenn ein Vorlagenpfad gesetzt ist.',
-  'settings.templater-enabled': 'Templater-Integration',
-  'settings.templater-enabled.desc': 'Templater nach der Erstellung auf Zwillingsdateien ausführen (erfordert Templater-Plugin).',
-  'settings.templater-path': 'Templater-Vorlagenpfad',
-  'settings.templater-path.desc': 'Pfad zu einer Vorlage, deren Frontmatter und Inhalt auf neue Zwillinge angewendet werden (ersetzt benutzerdefinierte Felder). Leer lassen, um benutzerdefinierte Felder zu verwenden.',
+  'settings.templater-enabled': 'Zwilling nach Erstellung mit Templater verarbeiten',
+  'settings.templater-enabled.desc': 'Templater auf jedem neu erstellten Zwilling ausführen, damit `<% … %>`-Syntax in der Vorlage aufgelöst wird. Erfordert das Community-Plugin Templater.',
+  'settings.templater-path': 'Zwillings-Vorlagendatei',
+  'settings.templater-path.desc': 'Wird als Basis-Frontmatter und -Inhalt für jeden neuen Zwilling verwendet. Templater verarbeitet sie, wenn der Schalter oben aktiviert und Templater installiert ist. Leer lassen, um die obigen benutzerdefinierten Felder zu verwenden.',
+  'settings.templater-status.not-installed': '⚠ Das Templater-Plugin ist nicht installiert. Zwillinge werden aus der Vorlage unverändert erstellt und `<% … %>`-Felder bleiben literal.',
+  'settings.templater-status.empty-path': 'Setze unten eine Vorlagendatei, damit Templater sie verarbeiten kann.',
+  'settings.templater-status.template-missing': '⚠ Vorlagendatei im Vault nicht gefunden.',
+  'settings.templater-status.no-dynamic-fields': 'Die aktuelle Vorlage hat keine `<% … %>`-Dynamikfelder — Templater ändert nichts.',
 
   // Base display names
   'base.preview': 'Vorschau',

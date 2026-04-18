@@ -37,6 +37,11 @@ export default {
     `Insert ${count} wiki-link(s) at the cursor position in the active note.`,
   'modal.insert-links-yes': 'Insert',
   'modal.insert-links-no': 'Skip',
+  'modal.bulk-templater-title': 'Run Templater on each new twin?',
+  'modal.bulk-templater-desc': (count: number) =>
+    `You're importing ${count} files. If you continue, Templater will ask you to fill template fields once per file. Choose "Skip" to create the twins now and run Templater later on individual twins.`,
+  'modal.bulk-templater-yes': 'Run Templater on each',
+  'modal.bulk-templater-no': 'Skip for this batch',
 
   // Settings
   'settings.sync-on-startup': 'Sync on startup',
@@ -53,10 +58,14 @@ export default {
   'settings.preview-folder.placeholder': 'e.g. attachments/twins/previews',
   'settings.custom-fields': 'Custom frontmatter fields',
   'settings.custom-fields.desc': 'Extra fields added to every twin file (one "key: value" per line). Ignored when a template path is set.',
-  'settings.templater-enabled': 'Templater integration',
-  'settings.templater-enabled.desc': 'Run Templater on twin files after creation (requires Templater plugin).',
-  'settings.templater-path': 'Templater template path',
-  'settings.templater-path.desc': 'Path to a template file whose frontmatter and body are merged into new twins (replaces custom fields). Leave empty to use custom fields instead.',
+  'settings.templater-enabled': 'Process twin with Templater after creation',
+  'settings.templater-enabled.desc': 'Run Templater on each newly-created twin so `<% … %>` syntax in the template is resolved. Requires the Templater community plugin.',
+  'settings.templater-path': 'Twin template file',
+  'settings.templater-path.desc': 'Used as the base frontmatter and body for every new twin. Templater processes it if the toggle above is on and Templater is installed. Leave empty to fall back to the custom fields above.',
+  'settings.templater-status.not-installed': '⚠ Templater plugin is not installed. Twins will be created from the template as-is and `<% … %>` fields will remain literal.',
+  'settings.templater-status.empty-path': 'Set a template file below for Templater to process.',
+  'settings.templater-status.template-missing': '⚠ Template file not found in the vault.',
+  'settings.templater-status.no-dynamic-fields': 'Current template has no `<% … %>` dynamic fields — Templater will not change anything.',
 
   // Base display names
   'base.preview': 'Preview',

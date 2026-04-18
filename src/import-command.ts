@@ -17,10 +17,20 @@ export interface ImportResult {
   failed: { name: string; error: string }[];
 }
 
+export interface ImportOptions {
+  /**
+   * Skip running Templater on each new twin. Used by the bulk-import flow
+   * to avoid firing interactive prompts once per file when the user has
+   * declined to fill them at import time.
+   */
+  skipTemplater?: boolean;
+}
+
 export async function importFiles(
   files: ImportedFile[],
   adapter: ImportAdapter,
   twinManager: TwinManager,
+  options?: ImportOptions,
 ): Promise<ImportResult> {
   const imported: TFile[] = [];
   const failed: { name: string; error: string }[] = [];
@@ -34,7 +44,7 @@ export async function importFiles(
       const buffer = await file.arrayBuffer();
       const targetPath = await adapter.getAvailablePathForAttachment(file.name, sourcePath);
       const tfile = await adapter.createBinary(targetPath, buffer);
-      await twinManager.createTwin(tfile);
+      await twinManager.createTwin(tfile, { skipTemplater: options?.skipTemplater });
       imported.push(tfile);
     } catch (e) {
       failed.push({

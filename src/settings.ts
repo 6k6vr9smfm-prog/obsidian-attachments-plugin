@@ -1,6 +1,7 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, TFile } from 'obsidian';
 import type AttachmentsAutopilotPlugin from './main';
 import { t } from './i18n';
+import { isTemplaterAvailable, hasTemplaterSyntax } from './templater-integration';
 
 export interface AttachmentsAutopilotSettings {
   syncOnStartup: boolean;
@@ -120,8 +121,17 @@ export class AttachmentsAutopilotSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.templaterEnabled).onChange(async (value) => {
           this.plugin.settings.templaterEnabled = value;
           await this.plugin.saveSettings();
+          // Re-render so the Templater status hint reflects the new
+          // toggle state immediately.
+          this.display();
         }),
       );
+
+    // Live status hint sits between the toggle and the path input so the
+    // feedback appears next to the knob that drives it. Re-rendered on
+    // every relevant change.
+    const statusEl = containerEl.createDiv({ cls: 'setting-item-description' });
+    void this.renderTemplaterStatus(statusEl);
 
     new Setting(containerEl)
       .setName(t('settings.templater-path'))
@@ -133,7 +143,42 @@ export class AttachmentsAutopilotSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.templaterTemplatePath = value.trim();
             await this.plugin.saveSettings();
+            // Re-read the template to refresh the "no dynamic fields" hint.
+            await this.renderTemplaterStatus(statusEl);
           }),
       );
+  }
+
+  private async renderTemplaterStatus(el: HTMLElement): Promise<void> {
+    el.empty();
+    el.style.color = '';
+    const { templaterEnabled, templaterTemplatePath } = this.plugin.settings;
+    if (!templaterEnabled) return;
+
+    const warn = (key: 'settings.templater-status.not-installed' | 'settings.templater-status.template-missing') => {
+      el.setText(t(key));
+      el.style.color = 'var(--text-warning)';
+    };
+
+    if (!isTemplaterAvailable(this.app)) {
+      warn('settings.templater-status.not-installed');
+      return;
+    }
+
+    if (!templaterTemplatePath) {
+      el.setText(t('settings.templater-status.empty-path'));
+      return;
+    }
+
+    const file = this.app.vault.getAbstractFileByPath(templaterTemplatePath);
+    if (!(file instanceof TFile)) {
+      warn('settings.templater-status.template-missing');
+      return;
+    }
+
+    const content = await this.app.vault.read(file);
+    if (!hasTemplaterSyntax(content)) {
+      el.setText(t('settings.templater-status.no-dynamic-fields'));
+    }
   }
 }

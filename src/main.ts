@@ -59,6 +59,49 @@ class InsertLinksModal extends Modal {
   }
 }
 
+class BulkTemplaterModal extends Modal {
+  private resolved = false;
+  private resolve!: (runTemplater: boolean) => void;
+  private count: number;
+
+  constructor(app: App, count: number) {
+    super(app);
+    this.count = count;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.createEl('h3', { text: t('modal.bulk-templater-title') });
+    contentEl.createEl('p', { text: t('modal.bulk-templater-desc')(this.count) });
+
+    const buttonRow = contentEl.createDiv({ cls: 'modal-button-container' });
+    buttonRow.createEl('button', { text: t('modal.bulk-templater-yes'), cls: 'mod-cta' })
+      .addEventListener('click', () => this.finish(true));
+    buttonRow.createEl('button', { text: t('modal.bulk-templater-no') })
+      .addEventListener('click', () => this.finish(false));
+  }
+
+  onClose() {
+    // Dismissing the modal without choosing defaults to "skip" — safer
+    // than firing N interactive prompts the user never opted into.
+    this.finish(false);
+  }
+
+  private finish(runTemplater: boolean) {
+    if (this.resolved) return;
+    this.resolved = true;
+    this.resolve(runTemplater);
+    this.close();
+  }
+
+  prompt(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.resolve = resolve;
+      this.open();
+    });
+  }
+}
+
 export default class AttachmentsAutopilotPlugin extends Plugin {
   settings!: AttachmentsAutopilotSettings;
   twinManager!: TwinManager;
@@ -123,12 +166,9 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
 
     // Wire Templater integration if enabled
     if (this.settings.templaterEnabled) {
-      this.twinManager.setTemplaterRunner(async (twinPath: string) => {
+      this.twinManager.setTemplaterRunner(async (twinFile: TFile) => {
         if (!isTemplaterAvailable(this.app)) return;
-        const twinFile = this.app.vault.getAbstractFileByPath(twinPath);
-        if (twinFile instanceof TFile) {
-          await runTemplaterOnFile(this.app, twinFile);
-        }
+        await runTemplaterOnFile(this.app, twinFile);
       });
     }
 
@@ -219,15 +259,42 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
         const picked = await pickLocalFiles(true);
         if (picked.length === 0) return;
 
+        // Bulk-import consent: if the user has Templater enabled with a
+        // working template and is importing > 1 file, ask once whether to
+        // run Templater on each new twin. Otherwise a multi-file import
+        // fires N sequential interactive prompt sequences with no opt-out.
+        let skipTemplater = false;
+        if (
+          picked.length > 1 &&
+          this.settings.templaterEnabled &&
+          this.settings.templaterTemplatePath &&
+          isTemplaterAvailable(this.app)
+        ) {
+          const runOnEach = await new BulkTemplaterModal(this.app, picked.length).prompt();
+          skipTemplater = !runOnEach;
+        }
+
         const adapter: ImportAdapter = {
           getAvailablePathForAttachment: (filename: string, sourcePath?: string) =>
             this.app.fileManager.getAvailablePathForAttachment(filename, sourcePath ?? ''),
-          createBinary: (path: string, data: ArrayBuffer) =>
-            this.app.vault.createBinary(path, data),
+          createBinary: async (path: string, data: ArrayBuffer) => {
+            // Pre-register in the processing Set so the vault 'create' event
+            // handler skips this file — importFiles calls createTwin directly
+            // and we don't want a duplicate (which would race with the
+            // Templater runner and clobber its interactive output).
+            this.processing.add(path);
+            return this.app.vault.createBinary(path, data);
+          },
           getActiveMarkdownPath: () => this.app.workspace.getActiveFile()?.path,
         };
 
-        const result = await importFiles(picked, adapter, this.twinManager);
+        const result = await importFiles(picked, adapter, this.twinManager, { skipTemplater });
+
+        // Clean up processing Set entries added by createBinary above
+        for (const f of result.imported) {
+          this.processing.delete(f.path);
+        }
+
         new Notice(t('notice.imported')(result.imported.length, result.failed.length));
         for (const fail of result.failed) {
           console.error('Attachments Autopilot: import failed', fail);

@@ -37,6 +37,11 @@ export default {
     `Insérer ${count} wiki-lien(s) à la position du curseur dans la note active.`,
   'modal.insert-links-yes': 'Insérer',
   'modal.insert-links-no': 'Ignorer',
+  'modal.bulk-templater-title': 'Exécuter Templater sur chaque nouveau jumeau ?',
+  'modal.bulk-templater-desc': (count: number) =>
+    `Vous importez ${count} fichiers. Si vous continuez, Templater vous demandera de remplir les champs du modèle une fois par fichier. Choisissez « Ignorer » pour créer les jumeaux maintenant et exécuter Templater plus tard sur des jumeaux individuels.`,
+  'modal.bulk-templater-yes': 'Exécuter Templater sur chacun',
+  'modal.bulk-templater-no': 'Ignorer pour ce lot',
 
   // Settings
   'settings.sync-on-startup': 'Synchroniser au démarrage',
@@ -53,10 +58,14 @@ export default {
   'settings.preview-folder.placeholder': 'ex. attachments/twins/previews',
   'settings.custom-fields': 'Champs frontmatter personnalisés',
   'settings.custom-fields.desc': 'Champs supplémentaires pour chaque fichier jumeau (un « clé: valeur » par ligne). Ignoré si un modèle est configuré.',
-  'settings.templater-enabled': 'Intégration Templater',
-  'settings.templater-enabled.desc': 'Exécuter Templater sur les fichiers jumeaux après leur création (nécessite le plugin Templater).',
-  'settings.templater-path': 'Chemin du modèle Templater',
-  'settings.templater-path.desc': 'Chemin vers un modèle dont le frontmatter et le corps sont appliqués aux nouveaux jumeaux (remplace les champs personnalisés). Laisser vide pour utiliser les champs personnalisés.',
+  'settings.templater-enabled': 'Traiter le jumeau avec Templater après création',
+  'settings.templater-enabled.desc': 'Exécuter Templater sur chaque jumeau nouvellement créé pour que la syntaxe `<% … %>` du modèle soit résolue. Nécessite le plugin communautaire Templater.',
+  'settings.templater-path': 'Fichier modèle du jumeau',
+  'settings.templater-path.desc': 'Utilisé comme base de frontmatter et de corps pour chaque nouveau jumeau. Templater le traite si la bascule ci-dessus est activée et que Templater est installé. Laisser vide pour utiliser les champs personnalisés ci-dessus.',
+  'settings.templater-status.not-installed': '⚠ Le plugin Templater n\'est pas installé. Les jumeaux seront créés à partir du modèle tel quel et les champs `<% … %>` resteront littéraux.',
+  'settings.templater-status.empty-path': 'Définissez un fichier modèle ci-dessous pour que Templater le traite.',
+  'settings.templater-status.template-missing': '⚠ Fichier modèle introuvable dans le vault.',
+  'settings.templater-status.no-dynamic-fields': 'Le modèle actuel n\'a pas de champs dynamiques `<% … %>` — Templater ne changera rien.',
 
   // Base display names
   'base.preview': 'Aperçu',

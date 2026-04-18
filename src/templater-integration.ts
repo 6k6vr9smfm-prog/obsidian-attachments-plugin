@@ -49,3 +49,12 @@ export async function getTemplateContent(app: App, templatePath: string): Promis
   if (!file || !(file instanceof TFile)) return null;
   return app.vault.read(file);
 }
+
+/**
+ * Returns true if the given content contains Templater dynamic syntax
+ * (a `<% ... %>` marker). Used to decide whether running Templater on a
+ * twin is worthwhile and to surface a "no dynamic fields" hint in settings.
+ */
+export function hasTemplaterSyntax(content: string): boolean {
+  return /<%[\s\S]*?%>/.test(content);
+}

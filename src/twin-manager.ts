@@ -29,7 +29,7 @@ export interface VaultAdapter {
   getAttachmentFolderPath(): string | undefined;
 }
 
-export type TemplaterRunner = (twinPath: string) => Promise<void>;
+export type TemplaterRunner = (twinFile: TFile) => Promise<void>;
 
 export class TwinManager {
   private previewAdapter: PreviewGeneratorAdapter | null = null;
@@ -52,7 +52,7 @@ export class TwinManager {
     return resolveWatchedScope(this.vault.getAttachmentFolderPath());
   }
 
-  async createTwin(file: TFile): Promise<void> {
+  async createTwin(file: TFile, opts?: { skipTemplater?: boolean }): Promise<void> {
     const scope = this.resolveScope();
     const ext = file.path.split('.').pop() || '';
     const type = classifyType(ext);
@@ -84,20 +84,24 @@ export class TwinManager {
 
     const existingTwin = this.vault.getAbstractFileByPath(twinPath);
     const isNewTwin = !(existingTwin instanceof TFile);
+    let createdTwin: TFile | undefined;
     if (existingTwin instanceof TFile) {
       // Atomic read-modify-write to avoid clobbering concurrent external edits
       await this.vault.process(existingTwin, (existingContent) =>
         mergeFrontmatter(existingContent, content),
       );
     } else {
-      await this.vault.create(twinPath, content);
+      createdTwin = await this.vault.create(twinPath, content);
     }
 
     // Only run Templater on freshly-created twins. Re-running on existing
     // twins would re-trigger any interactive prompts in the template on
     // every startup sync — infinite prompt loop on iOS reload.
-    if (isNewTwin && this.templaterRunner) {
-      await this.templaterRunner(twinPath);
+    // Pass the TFile directly — getAbstractFileByPath may return null for a
+    // just-created file due to an indexing race (same issue as the preview
+    // generator, see comment in createTwin's preview block).
+    if (isNewTwin && !opts?.skipTemplater && this.templaterRunner && createdTwin) {
+      await this.templaterRunner(createdTwin);
     }
   }
 

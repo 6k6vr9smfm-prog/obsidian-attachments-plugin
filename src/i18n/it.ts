@@ -37,6 +37,11 @@ export default {
     `Inserire ${count} wiki-link alla posizione del cursore nella nota attiva.`,
   'modal.insert-links-yes': 'Inserisci',
   'modal.insert-links-no': 'Salta',
+  'modal.bulk-templater-title': 'Eseguire Templater su ogni nuovo gemello?',
+  'modal.bulk-templater-desc': (count: number) =>
+    `Stai importando ${count} file. Se continui, Templater ti chiederà di compilare i campi del modello una volta per file. Scegli "Salta" per creare i gemelli ora ed eseguire Templater in seguito su gemelli singoli.`,
+  'modal.bulk-templater-yes': 'Esegui Templater su ciascuno',
+  'modal.bulk-templater-no': 'Salta per questo lotto',
 
   // Settings
   'settings.sync-on-startup': 'Sincronizza all\'avvio',
@@ -53,10 +58,14 @@ export default {
   'settings.preview-folder.placeholder': 'es. attachments/twins/previews',
   'settings.custom-fields': 'Campi frontmatter personalizzati',
   'settings.custom-fields.desc': 'Campi aggiuntivi per ogni file gemello (un "chiave: valore" per riga). Ignorato se è impostato un modello.',
-  'settings.templater-enabled': 'Integrazione Templater',
-  'settings.templater-enabled.desc': 'Esegui Templater sui file gemelli dopo la creazione (richiede il plugin Templater).',
-  'settings.templater-path': 'Percorso del modello Templater',
-  'settings.templater-path.desc': 'Percorso di un modello il cui frontmatter e corpo vengono applicati ai nuovi gemelli (sostituisce i campi personalizzati). Lasciare vuoto per usare i campi personalizzati.',
+  'settings.templater-enabled': 'Elabora il gemello con Templater dopo la creazione',
+  'settings.templater-enabled.desc': 'Esegui Templater su ogni gemello appena creato affinché la sintassi `<% … %>` nel modello venga risolta. Richiede il plugin della comunità Templater.',
+  'settings.templater-path': 'File modello del gemello',
+  'settings.templater-path.desc': 'Usato come frontmatter e corpo di base per ogni nuovo gemello. Templater lo elabora se l\'interruttore sopra è attivo e Templater è installato. Lasciare vuoto per usare i campi personalizzati sopra.',
+  'settings.templater-status.not-installed': '⚠ Il plugin Templater non è installato. I gemelli saranno creati dal modello così com\'è e i campi `<% … %>` resteranno letterali.',
+  'settings.templater-status.empty-path': 'Imposta un file modello sotto affinché Templater lo elabori.',
+  'settings.templater-status.template-missing': '⚠ File modello non trovato nel vault.',
+  'settings.templater-status.no-dynamic-fields': 'Il modello attuale non ha campi dinamici `<% … %>` — Templater non cambierà nulla.',
 
   // Base display names
   'base.preview': 'Anteprima',

@@ -568,7 +568,9 @@ attachment-preview: ""
       await manager.createTwin(file);
 
       expect(runner).toHaveBeenCalledTimes(1);
-      expect(runner).toHaveBeenCalledWith('attachments/twins/photo.png.md');
+      const calledWith = runner.mock.calls[0][0];
+      expect(calledWith).toBeInstanceOf(TFile);
+      expect(calledWith.path).toBe('attachments/twins/photo.png.md');
     });
 
     it('does not invoke templaterRunner when not set', async () => {
@@ -589,6 +591,20 @@ attachment-preview: ""
       await manager.createTwin(file);
 
       expect(runner).not.toHaveBeenCalled();
+    });
+
+    it('does not invoke templaterRunner when skipTemplater is set, even on new twins', async () => {
+      // Bulk-import flow calls createTwin with { skipTemplater: true } when
+      // the user has declined to fill Templater prompts for the whole batch.
+      const runner = jest.fn();
+      manager.setTemplaterRunner(runner);
+
+      const file = makeTFile('attachments/photo.png', { size: 2048 });
+      await manager.createTwin(file, { skipTemplater: true });
+
+      expect(runner).not.toHaveBeenCalled();
+      // Twin should still be created as normal.
+      expect(vault.has('attachments/twins/photo.png.md')).toBe(true);
     });
   });
 
